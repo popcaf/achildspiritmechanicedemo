@@ -93,7 +93,7 @@ func _build_ui() -> void:
 	_hub.add_child(_title)
 
 	_hint = Label.new()
-	_hint.text = "Hover: switch    Click: swap-skill aim    RMB / Esc: cancel"
+	_hint.text = "Release Q: switch    Click: swap-skill aim    RMB / Esc: cancel"
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.anchor_left = 0.5
 	_hint.anchor_right = 0.5
@@ -172,8 +172,6 @@ func _make_icon(idx: int, data: Dictionary, total: int) -> Button:
 	btn.offset_right = ox + ICON_RADIUS + 4.0
 	btn.offset_top = oy - ICON_RADIUS - 4.0
 	btn.offset_bottom = oy + ICON_RADIUS + 26.0
-	btn.mouse_entered.connect(_on_icon_mouse_entered.bind(idx))
-	btn.mouse_exited.connect(_on_icon_mouse_exited.bind(idx))
 	btn.pressed.connect(_on_icon_pressed.bind(idx))
 
 	var color: Color = data.get("color", Color.WHITE)
@@ -236,34 +234,48 @@ func _refresh_icon_states() -> void:
 			continue
 		var idx: int = int(icon.get_meta("stance_idx", -1))
 		var is_current: bool = idx == _current_stance
+		var is_hovered: bool = idx == _hover_idx
 		icon.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 		var ring: Panel = icon.get_node_or_null("Ring")
 		if ring:
 			var rs: StyleBoxFlat = ring.get_theme_stylebox("panel")
 			if rs:
-				rs.border_color = (
-					Color(1.0, 0.95, 0.45, 1.0) if is_current else Color(1, 1, 1, 0.55)
-				)
+				if is_current:
+					rs.border_color = Color(1.0, 0.95, 0.45, 1.0)
+					rs.set_border_width_all(RING_THICKNESS)
+				elif is_hovered:
+					rs.border_color = Color(0.55, 0.95, 1.0, 1.0)
+					rs.set_border_width_all(RING_THICKNESS + 2)
+				else:
+					rs.border_color = Color(1, 1, 1, 0.45)
+					rs.set_border_width_all(RING_THICKNESS)
 
-		if is_current:
-			icon.modulate = Color(0.85, 0.85, 0.9, 0.85)
+		if is_hovered:
+			icon.modulate = Color(1.18, 1.18, 1.22, 1.0)
+		elif is_current:
+			icon.modulate = Color(0.92, 0.92, 0.96, 0.95)
 		else:
-			icon.modulate = Color(1.0, 1.0, 1.0, 1.0)
+			icon.modulate = Color(0.85, 0.85, 0.9, 0.95)
 
 
-func _on_icon_mouse_entered(idx: int) -> void:
+func _process(_delta: float) -> void:
 	if not _active:
 		return
-	_hover_idx = idx
-	if idx == _current_stance:
-		return
-	stance_selected.emit(idx, false)
+	var found: int = _icon_under_mouse()
+	if found != _hover_idx:
+		_hover_idx = found
+		_refresh_icon_states()
 
 
-func _on_icon_mouse_exited(idx: int) -> void:
-	if _hover_idx == idx:
-		_hover_idx = -1
+func _icon_under_mouse() -> int:
+	for icon in _icons:
+		if not is_instance_valid(icon):
+			continue
+		var btn: Button = icon
+		if btn.get_global_rect().has_point(btn.get_global_mouse_position()):
+			return int(btn.get_meta("stance_idx", -1))
+	return -1
 
 
 func _on_icon_pressed(idx: int) -> void:
@@ -279,6 +291,9 @@ func _unhandled_input(event: InputEvent) -> void:
 		swap_cancelled.emit()
 		return
 	if event.is_action_released("stance_toggle"):
+		# Commit the previewed stance on Q release.
+		if _hover_idx != -1 and _hover_idx != _current_stance:
+			stance_selected.emit(_hover_idx, false)
 		swap_cancelled.emit()
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
