@@ -1,0 +1,145 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/player.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/dummy.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="3"]
+[ext_resource type="Script" path="res://scripts/hazard.gd" id="4"]
+[ext_resource type="Script" path="res://scripts/dummy_spawner.gd" id="5"]
+
+[node name="TestMap" type="Node2D"]
+
+[node name="Background" type="Polygon2D" parent="."]
+color = Color(0.06, 0.06, 0.09, 1)
+polygon = PackedVector2Array(-2000, -2000, 2500, -2000, 2500, 2000, -2000, 2000)
+
+[node name="Ground" type="StaticBody2D" parent="."]
+
+[node name="Visual" type="Polygon2D" parent="Ground"]
+color = Color(0.18, 0.2, 0.26, 1)
+polygon = PackedVector2Array(-700, 200, 1200, 200, 1200, 700, -700, 700)
+
+[node name="Shape" type="CollisionPolygon2D" parent="Ground"]
+polygon = PackedVector2Array(-700, 200, 1200, 200, 1200, 700, -700, 700)
+
+[node name="Outline" type="Line2D" parent="Ground"]
+points = PackedVector2Array(-700, 200, 1200, 200)
+width = 3.0
+default_color = Color(0.55, 0.6, 0.7, 1)
+
+[node name="PlatformA" type="StaticBody2D" parent="."]
+position = Vector2(-300, 80)
+
+[node name="Visual" type="Polygon2D" parent="PlatformA"]
+color = Color(0.22, 0.24, 0.32, 1)
+polygon = PackedVector2Array(-100, -10, 100, -10, 100, 10, -100, 10)
+
+[node name="Shape" type="CollisionPolygon2D" parent="PlatformA"]
+polygon = PackedVector2Array(-100, -10, 100, -10, 100, 10, -100, 10)
+
+[node name="Outline" type="Line2D" parent="PlatformA"]
+points = PackedVector2Array(-100, -10, 100, -10)
+width = 2.0
+default_color = Color(0.55, 0.6, 0.7, 1)
+
+[node name="PlatformB" type="StaticBody2D" parent="."]
+position = Vector2(280, 30)
+
+[node name="Visual" type="Polygon2D" parent="PlatformB"]
+color = Color(0.22, 0.24, 0.32, 1)
+polygon = PackedVector2Array(-125, -10, 125, -10, 125, 10, -125, 10)
+
+[node name="Shape" type="CollisionPolygon2D" parent="PlatformB"]
+polygon = PackedVector2Array(-125, -10, 125, -10, 125, 10, -125, 10)
+
+[node name="Outline" type="Line2D" parent="PlatformB"]
+points = PackedVector2Array(-125, -10, 125, -10)
+width = 2.0
+default_color = Color(0.55, 0.6, 0.7, 1)
+
+[node name="PlatformC" type="StaticBody2D" parent="."]
+position = Vector2(700, -100)
+
+[node name="Visual" type="Polygon2D" parent="PlatformC"]
+color = Color(0.22, 0.24, 0.32, 1)
+polygon = PackedVector2Array(-100, -10, 100, -10, 100, 10, -100, 10)
+
+[node name="Shape" type="CollisionPolygon2D" parent="PlatformC"]
+polygon = PackedVector2Array(-100, -10, 100, -10, 100, 10, -100, 10)
+
+[node name="Outline" type="Line2D" parent="PlatformC"]
+points = PackedVector2Array(-100, -10, 100, -10)
+width = 2.0
+default_color = Color(0.55, 0.6, 0.7, 1)
+
+[node name="LeftWall" type="StaticBody2D" parent="."]
+position = Vector2(-720, 0)
+
+[node name="Visual" type="Polygon2D" parent="LeftWall"]
+color = Color(0.18, 0.2, 0.26, 1)
+polygon = PackedVector2Array(0, -500, 20, -500, 20, 200, 0, 200)
+
+[node name="Shape" type="CollisionPolygon2D" parent="LeftWall"]
+polygon = PackedVector2Array(0, -500, 20, -500, 20, 200, 0, 200)
+
+[node name="RightWall" type="StaticBody2D" parent="."]
+position = Vector2(1200, 0)
+
+[node name="Visual" type="Polygon2D" parent="RightWall"]
+color = Color(0.18, 0.2, 0.26, 1)
+polygon = PackedVector2Array(0, -500, 20, -500, 20, 200, 0, 200)
+
+[node name="Shape" type="CollisionPolygon2D" parent="RightWall"]
+polygon = PackedVector2Array(0, -500, 20, -500, 20, 200, 0, 200)
+
+[node name="Spikes" type="Area2D" parent="."]
+position = Vector2(80, 200)
+script = ExtResource("4")
+
+[node name="Visual" type="Polygon2D" parent="Spikes"]
+color = Color(0.85, 0.3, 0.35, 1)
+polygon = PackedVector2Array(-40, 0, -30, -14, -20, 0, -10, -14, 0, 0, 10, -14, 20, 0, 30, -14, 40, 0)
+
+[node name="Shape" type="CollisionPolygon2D" parent="Spikes"]
+polygon = PackedVector2Array(-40, 0, -30, -14, -20, 0, -10, -14, 0, 0, 10, -14, 20, 0, 30, -14, 40, 0)
+
+[node name="Player" parent="." instance=ExtResource("1")]
+position = Vector2(-500, 100)
+
+[node name="DummySpawner" type="Node2D" parent="."]
+script = ExtResource("5")
+
+[node name="SpawnPoint1" type="Marker2D" parent="DummySpawner"]
+position = Vector2(-450, 184)
+
+[node name="SpawnPoint2" type="Marker2D" parent="DummySpawner"]
+position = Vector2(200, 184)
+
+[node name="SpawnPoint3" type="Marker2D" parent="DummySpawner"]
+position = Vector2(1050, 184)
+
+[node name="SpawnPoint4" type="Marker2D" parent="DummySpawner"]
+position = Vector2(-300, 54)
+
+[node name="SpawnPoint5" type="Marker2D" parent="DummySpawner"]
+position = Vector2(350, 4)
+
+[node name="SpawnPoint6" type="Marker2D" parent="DummySpawner"]
+position = Vector2(700, -126)
+
+[node name="Dummy1" parent="DummySpawner" instance=ExtResource("2")]
+position = Vector2(-100, 184)
+weakness = 1
+
+[node name="Dummy2" parent="DummySpawner" instance=ExtResource("2")]
+position = Vector2(280, 4)
+weakness = 2
+
+[node name="Dummy3" parent="DummySpawner" instance=ExtResource("2")]
+position = Vector2(700, -126)
+weakness = 1
+
+[node name="Dummy4" parent="DummySpawner" instance=ExtResource("2")]
+position = Vector2(950, 184)
+weakness = 2
+
+[node name="HUD" parent="." instance=ExtResource("3")]
