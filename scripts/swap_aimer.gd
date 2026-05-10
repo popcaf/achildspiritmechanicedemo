@@ -43,11 +43,18 @@ func _build_ui() -> void:
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(backdrop)
 
+	# Hub gets a real rect so child Buttons sit inside their parent's bounds
+	# (Controls with a zero-size parent can fail hit testing in some setups).
+	var hub_extent: float = WHEEL_RADIUS + ICON_RADIUS + 32.0
 	_hub = Control.new()
 	_hub.anchor_left = 0.5
 	_hub.anchor_right = 0.5
 	_hub.anchor_top = 0.5
 	_hub.anchor_bottom = 0.5
+	_hub.offset_left = -hub_extent
+	_hub.offset_right = hub_extent
+	_hub.offset_top = -hub_extent - 80.0
+	_hub.offset_bottom = hub_extent + 80.0
 	_hub.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_hub)
 
@@ -86,7 +93,7 @@ func _build_ui() -> void:
 	_hub.add_child(_title)
 
 	_hint = Label.new()
-	_hint.text = "Hover: switch    Shift+Hover: swap-skill aim    RMB / Esc: cancel"
+	_hint.text = "Hover: switch    Click: swap-skill aim    RMB / Esc: cancel"
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.anchor_left = 0.5
 	_hint.anchor_right = 0.5
@@ -110,15 +117,19 @@ func configure(stances: Array, current_stance: int) -> void:
 
 func start_aiming() -> void:
 	visible = true
+	if _root:
+		_root.visible = true
 	_active = true
 	_hover_idx = -1
 	_refresh_icon_states()
 
 
 func stop_aiming() -> void:
-	visible = false
 	_active = false
 	_hover_idx = -1
+	if _root:
+		_root.visible = false
+	visible = false
 
 
 func set_current_stance(stance_idx: int) -> void:
@@ -148,6 +159,7 @@ func _make_icon(idx: int, data: Dictionary, total: int) -> Button:
 	var oy: float = sin(angle) * WHEEL_RADIUS
 
 	var btn := Button.new()
+	btn.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
 	btn.flat = true
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
@@ -162,6 +174,7 @@ func _make_icon(idx: int, data: Dictionary, total: int) -> Button:
 	btn.offset_bottom = oy + ICON_RADIUS + 26.0
 	btn.mouse_entered.connect(_on_icon_mouse_entered.bind(idx))
 	btn.mouse_exited.connect(_on_icon_mouse_exited.bind(idx))
+	btn.pressed.connect(_on_icon_pressed.bind(idx))
 
 	var color: Color = data.get("color", Color.WHITE)
 
@@ -223,10 +236,7 @@ func _refresh_icon_states() -> void:
 			continue
 		var idx: int = int(icon.get_meta("stance_idx", -1))
 		var is_current: bool = idx == _current_stance
-		icon.disabled = is_current
-		icon.mouse_default_cursor_shape = (
-			Control.CURSOR_FORBIDDEN if is_current else Control.CURSOR_POINTING_HAND
-		)
+		icon.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 
 		var ring: Panel = icon.get_node_or_null("Ring")
 		if ring:
@@ -237,7 +247,7 @@ func _refresh_icon_states() -> void:
 				)
 
 		if is_current:
-			icon.modulate = Color(0.6, 0.6, 0.65, 0.65)
+			icon.modulate = Color(0.85, 0.85, 0.9, 0.85)
 		else:
 			icon.modulate = Color(1.0, 1.0, 1.0, 1.0)
 
@@ -245,13 +255,10 @@ func _refresh_icon_states() -> void:
 func _on_icon_mouse_entered(idx: int) -> void:
 	if not _active:
 		return
+	_hover_idx = idx
 	if idx == _current_stance:
 		return
-	_hover_idx = idx
-	if Input.is_key_pressed(KEY_SHIFT):
-		stance_aim_requested.emit(idx)
-	else:
-		stance_selected.emit(idx, false)
+	stance_selected.emit(idx, false)
 
 
 func _on_icon_mouse_exited(idx: int) -> void:
@@ -259,7 +266,13 @@ func _on_icon_mouse_exited(idx: int) -> void:
 		_hover_idx = -1
 
 
-func _input(event: InputEvent) -> void:
+func _on_icon_pressed(idx: int) -> void:
+	if not _active:
+		return
+	stance_aim_requested.emit(idx)
+
+
+func _unhandled_input(event: InputEvent) -> void:
 	if not _active:
 		return
 	if event.is_action_pressed("cancel_skill") or event.is_action_pressed("ui_cancel"):
@@ -270,8 +283,3 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		swap_cancelled.emit()
-		return
-	# Shift pressed while already hovering an icon → start swap-skill aim for that stance.
-	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_SHIFT and _hover_idx != -1 and _hover_idx != _current_stance:
-			stance_aim_requested.emit(_hover_idx)

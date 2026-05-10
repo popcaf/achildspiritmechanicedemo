@@ -110,6 +110,7 @@ signal stance_changed(stance: int)
 @onready var earth_stance: StancePlayer = $StanceHolder/EarthPlayer
 @onready var aim_reticle: Node2D = $AimReticle
 @onready var swap_aimer: Node = $SwapAimer
+@onready var swap_range_aimer: Node2D = $SwapRangeAimer
 @onready var cast_page: Node = get_node_or_null(cast_page_path)
 
 
@@ -130,6 +131,9 @@ func _ready() -> void:
 		swap_aimer.stance_selected.connect(_on_stance_selected)
 		swap_aimer.stance_aim_requested.connect(_on_stance_aim_requested)
 		swap_aimer.swap_cancelled.connect(_on_swap_cancelled)
+	if swap_range_aimer:
+		swap_range_aimer.aim_confirmed.connect(_on_swap_range_confirmed)
+		swap_range_aimer.aim_cancelled.connect(_on_swap_range_cancelled)
 	health_changed.emit(health, max_health)
 	mana_changed.emit(mana, max_mana)
 	stance_changed.emit(current_stance)
@@ -137,7 +141,7 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	if aim_reticle:
-		if aiming_active or pending_swap_stance != -1:
+		if aiming_active:
 			aim_reticle.visible = true
 			aim_reticle.global_position = get_global_mouse_position()
 		else:
@@ -178,16 +182,11 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("attack"):
 		if aiming_active:
 			_execute_pending_skill(get_global_mouse_position())
-		elif pending_swap_stance != -1:
-			var stance := pending_swap_stance
-			pending_swap_stance = -1
-			_execute_swap_skill_at(get_global_mouse_position(), stance)
 		elif attack_cd <= 0.0 and dash_time_left <= 0.0 and swap_time_left <= 0.0:
 			_basic_attack()
 
-	if (aiming_active or pending_swap_stance != -1) and (Input.is_action_just_pressed("ui_cancel") or Input.is_action_just_pressed("cancel_skill")):
+	if aiming_active and (Input.is_action_just_pressed("ui_cancel") or Input.is_action_just_pressed("cancel_skill")):
 		_cancel_skill()
-		pending_swap_stance = -1
 
 	if Input.is_action_just_pressed("dash") and dash_cd <= 0.0 and dash_time_left <= 0.0 and swap_time_left <= 0.0:
 		_do_dash()
@@ -499,10 +498,31 @@ func _on_stance_selected(stance_idx: int, _use_skill: bool) -> void:
 
 
 func _on_stance_aim_requested(stance_idx: int) -> void:
-	if stance_idx == current_stance:
-		return
-	_close_swap_hud()
+	# Hide wheel but stay paused — range-aimer takes over while paused.
+	swap_aiming = false
+	if swap_aimer:
+		swap_aimer.stop_aiming()
 	pending_swap_stance = stance_idx
+	if swap_range_aimer:
+		var stance_color: Color = STANCES[stance_idx].color
+		swap_range_aimer.start_aiming(stance_color, SWAP_TRAVEL_DISTANCE)
+
+
+func _on_swap_range_confirmed(target_pos: Vector2) -> void:
+	var stance := pending_swap_stance
+	pending_swap_stance = -1
+	if swap_range_aimer:
+		swap_range_aimer.stop_aiming()
+	get_tree().paused = false
+	if stance >= 0:
+		_execute_swap_skill_at(target_pos, stance)
+
+
+func _on_swap_range_cancelled() -> void:
+	pending_swap_stance = -1
+	if swap_range_aimer:
+		swap_range_aimer.stop_aiming()
+	get_tree().paused = false
 
 
 func _on_swap_cancelled() -> void:
@@ -705,6 +725,8 @@ func take_damage(amount: int) -> void:
 		_end_swap_phase()
 		if swap_aimer:
 			swap_aimer.stop_aiming()
+		if swap_range_aimer:
+			swap_range_aimer.stop_aiming()
 		get_tree().paused = false
 		health_changed.emit(health, max_health)
 		mana_changed.emit(mana, max_mana)
