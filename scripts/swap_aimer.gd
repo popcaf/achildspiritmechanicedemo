@@ -1,22 +1,25 @@
 extends CanvasLayer
 
 signal stance_selected(stance_idx: int, use_skill: bool)
+signal stance_aim_requested(stance_idx: int)
 signal swap_cancelled
 
-const ICON_RADIUS := 38.0
-const ICON_SPACING := 18.0
-const PANEL_PADDING := 24.0
-const PANEL_TOP_MARGIN := 90.0
+const ICON_RADIUS := 42.0
+const WHEEL_RADIUS := 170.0
+const RING_THICKNESS := 3
+const TITLE_OFFSET := -WHEEL_RADIUS - 70.0
+const HINT_OFFSET := WHEEL_RADIUS + 56.0
 
 var _stances: Array = []
 var _current_stance: int = 0
 var _active: bool = false
+var _hover_idx: int = -1
 
 var _root: Control
-var _panel: Panel
-var _row: HBoxContainer
+var _hub: Control
 var _title: Label
 var _hint: Label
+var _icons: Array = []
 
 
 func _ready() -> void:
@@ -32,115 +35,133 @@ func _build_ui() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
 
-	_panel = Panel.new()
-	_panel.anchor_left = 0.5
-	_panel.anchor_right = 0.5
-	_panel.anchor_top = 0.0
-	_panel.offset_top = PANEL_TOP_MARGIN
-	_panel.offset_bottom = PANEL_TOP_MARGIN + ICON_RADIUS * 2.0 + 90.0
-	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	var pstyle := StyleBoxFlat.new()
-	pstyle.bg_color = Color(0.06, 0.07, 0.1, 0.92)
-	pstyle.border_color = Color(0.4, 0.45, 0.55, 1.0)
-	pstyle.set_border_width_all(2)
-	pstyle.set_corner_radius_all(8)
-	pstyle.content_margin_left = PANEL_PADDING
-	pstyle.content_margin_right = PANEL_PADDING
-	pstyle.content_margin_top = 14.0
-	pstyle.content_margin_bottom = 14.0
-	_panel.add_theme_stylebox_override("panel", pstyle)
-	_root.add_child(_panel)
+	# Dim backdrop so the wheel pops while paused.
+	var backdrop := ColorRect.new()
+	backdrop.color = Color(0, 0, 0, 0.45)
+	backdrop.anchor_right = 1.0
+	backdrop.anchor_bottom = 1.0
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(backdrop)
+
+	_hub = Control.new()
+	_hub.anchor_left = 0.5
+	_hub.anchor_right = 0.5
+	_hub.anchor_top = 0.5
+	_hub.anchor_bottom = 0.5
+	_hub.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_hub)
+
+	var ring := Panel.new()
+	var ring_style := StyleBoxFlat.new()
+	ring_style.bg_color = Color(0, 0, 0, 0)
+	ring_style.border_color = Color(1, 1, 1, 0.18)
+	ring_style.set_border_width_all(2)
+	ring_style.set_corner_radius_all(int(WHEEL_RADIUS) + 6)
+	ring.add_theme_stylebox_override("panel", ring_style)
+	ring.anchor_left = 0.5
+	ring.anchor_right = 0.5
+	ring.anchor_top = 0.5
+	ring.anchor_bottom = 0.5
+	ring.offset_left = -WHEEL_RADIUS - 6.0
+	ring.offset_right = WHEEL_RADIUS + 6.0
+	ring.offset_top = -WHEEL_RADIUS - 6.0
+	ring.offset_bottom = WHEEL_RADIUS + 6.0
+	ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hub.add_child(ring)
 
 	_title = Label.new()
 	_title.text = "SWAP STANCE"
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title.anchor_left = 0.0
-	_title.anchor_right = 1.0
-	_title.offset_top = 8.0
-	_title.offset_bottom = 30.0
+	_title.anchor_left = 0.5
+	_title.anchor_right = 0.5
+	_title.offset_left = -160.0
+	_title.offset_right = 160.0
+	_title.offset_top = TITLE_OFFSET
+	_title.offset_bottom = TITLE_OFFSET + 22.0
 	_title.add_theme_color_override("font_color", Color(0.95, 0.92, 0.7, 1))
 	_title.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
-	_title.add_theme_constant_override("outline_size", 3)
-	_title.add_theme_font_size_override("font_size", 14)
+	_title.add_theme_constant_override("outline_size", 4)
+	_title.add_theme_font_size_override("font_size", 16)
 	_title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_panel.add_child(_title)
-
-	_row = HBoxContainer.new()
-	_row.anchor_left = 0.0
-	_row.anchor_right = 1.0
-	_row.anchor_top = 0.0
-	_row.offset_top = 32.0
-	_row.offset_bottom = 32.0 + ICON_RADIUS * 2.0 + 26.0
-	_row.add_theme_constant_override("separation", int(ICON_SPACING))
-	_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_row.mouse_filter = Control.MOUSE_FILTER_PASS
-	_panel.add_child(_row)
+	_hub.add_child(_title)
 
 	_hint = Label.new()
-	_hint.text = "Click: switch    Shift+Click: swap skill    RMB / Esc: cancel"
+	_hint.text = "Hover: switch    Shift+Hover: swap-skill aim    RMB / Esc: cancel"
 	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_hint.anchor_left = 0.0
-	_hint.anchor_right = 1.0
-	_hint.anchor_bottom = 1.0
-	_hint.offset_top = -24.0
-	_hint.offset_bottom = -6.0
+	_hint.anchor_left = 0.5
+	_hint.anchor_right = 0.5
+	_hint.offset_left = -260.0
+	_hint.offset_right = 260.0
+	_hint.offset_top = HINT_OFFSET
+	_hint.offset_bottom = HINT_OFFSET + 20.0
 	_hint.add_theme_color_override("font_color", Color(0.8, 0.85, 0.95, 1))
 	_hint.add_theme_color_override("font_outline_color", Color(0, 0, 0, 1))
 	_hint.add_theme_constant_override("outline_size", 3)
-	_hint.add_theme_font_size_override("font_size", 12)
+	_hint.add_theme_font_size_override("font_size", 13)
 	_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_panel.add_child(_hint)
+	_hub.add_child(_hint)
 
 
 func configure(stances: Array, current_stance: int) -> void:
 	_stances = stances
 	_current_stance = current_stance
 	_rebuild_icons()
-	_resize_panel()
 
 
 func start_aiming() -> void:
 	visible = true
 	_active = true
-	_refresh_highlight()
+	_hover_idx = -1
+	_refresh_icon_states()
 
 
 func stop_aiming() -> void:
 	visible = false
 	_active = false
+	_hover_idx = -1
 
 
 func set_current_stance(stance_idx: int) -> void:
 	_current_stance = stance_idx
 	if _active:
-		_refresh_highlight()
-
-
-func _resize_panel() -> void:
-	var icon_w: float = ICON_RADIUS * 2.0 + 8.0
-	var n: int = maxi(1, _stances.size())
-	var width: float = float(n) * icon_w + float(n - 1) * ICON_SPACING + PANEL_PADDING * 2.0
-	width = maxf(width, 360.0)
-	_panel.offset_left = -width / 2.0
-	_panel.offset_right = width / 2.0
+		_refresh_icon_states()
 
 
 func _rebuild_icons() -> void:
-	for c in _row.get_children():
-		c.queue_free()
-	for i in range(_stances.size()):
+	for icon in _icons:
+		if is_instance_valid(icon):
+			icon.queue_free()
+	_icons.clear()
+
+	var n: int = _stances.size()
+	for i in range(n):
 		var data: Dictionary = _stances[i]
-		_row.add_child(_make_icon(i, data))
+		var icon := _make_icon(i, data, n)
+		_icons.append(icon)
+		_hub.add_child(icon)
+	_refresh_icon_states()
 
 
-func _make_icon(idx: int, data: Dictionary) -> Control:
+func _make_icon(idx: int, data: Dictionary, total: int) -> Button:
+	var angle: float = float(idx) * TAU / float(total) - TAU / 4.0
+	var ox: float = cos(angle) * WHEEL_RADIUS
+	var oy: float = sin(angle) * WHEEL_RADIUS
+
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(ICON_RADIUS * 2.0 + 8.0, ICON_RADIUS * 2.0 + 26.0)
 	btn.flat = true
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	btn.set_meta("stance_idx", idx)
-	btn.pressed.connect(_on_icon_pressed.bind(idx))
+	btn.anchor_left = 0.5
+	btn.anchor_right = 0.5
+	btn.anchor_top = 0.5
+	btn.anchor_bottom = 0.5
+	btn.offset_left = ox - ICON_RADIUS - 4.0
+	btn.offset_right = ox + ICON_RADIUS + 4.0
+	btn.offset_top = oy - ICON_RADIUS - 4.0
+	btn.offset_bottom = oy + ICON_RADIUS + 26.0
+	btn.mouse_entered.connect(_on_icon_mouse_entered.bind(idx))
+	btn.mouse_exited.connect(_on_icon_mouse_exited.bind(idx))
 
 	var color: Color = data.get("color", Color.WHITE)
 
@@ -156,13 +177,14 @@ func _make_icon(idx: int, data: Dictionary) -> Control:
 	disc.offset_top = 4.0
 	disc.offset_bottom = ICON_RADIUS * 2.0 + 4.0
 	disc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	disc.name = "Disc"
 	btn.add_child(disc)
 
 	var ring := Panel.new()
 	var ring_style := StyleBoxFlat.new()
 	ring_style.bg_color = Color(0, 0, 0, 0)
-	ring_style.border_color = Color(1, 1, 1, 0.6)
-	ring_style.set_border_width_all(3)
+	ring_style.border_color = Color(1, 1, 1, 0.55)
+	ring_style.set_border_width_all(RING_THICKNESS)
 	ring_style.set_corner_radius_all(int(ICON_RADIUS) + 4)
 	ring.add_theme_stylebox_override("panel", ring_style)
 	ring.anchor_left = 0.5
@@ -189,33 +211,52 @@ func _make_icon(idx: int, data: Dictionary) -> Control:
 	label.add_theme_constant_override("outline_size", 3)
 	label.add_theme_font_size_override("font_size", 13)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	label.name = "Label"
 	btn.add_child(label)
 
 	return btn
 
 
-func _refresh_highlight() -> void:
-	for child in _row.get_children():
-		var idx: int = int(child.get_meta("stance_idx", -1))
-		var ring: Panel = child.get_node_or_null("Ring")
-		if ring == null:
+func _refresh_icon_states() -> void:
+	for icon in _icons:
+		if not is_instance_valid(icon):
 			continue
-		var style: StyleBoxFlat = ring.get_theme_stylebox("panel")
-		if style == null:
-			continue
-		if idx == _current_stance:
-			style.border_color = Color(1.0, 0.95, 0.45, 1.0)
-			child.modulate = Color(1.15, 1.15, 1.15, 1.0)
+		var idx: int = int(icon.get_meta("stance_idx", -1))
+		var is_current: bool = idx == _current_stance
+		icon.disabled = is_current
+		icon.mouse_default_cursor_shape = (
+			Control.CURSOR_FORBIDDEN if is_current else Control.CURSOR_POINTING_HAND
+		)
+
+		var ring: Panel = icon.get_node_or_null("Ring")
+		if ring:
+			var rs: StyleBoxFlat = ring.get_theme_stylebox("panel")
+			if rs:
+				rs.border_color = (
+					Color(1.0, 0.95, 0.45, 1.0) if is_current else Color(1, 1, 1, 0.55)
+				)
+
+		if is_current:
+			icon.modulate = Color(0.6, 0.6, 0.65, 0.65)
 		else:
-			style.border_color = Color(1, 1, 1, 0.55)
-			child.modulate = Color(0.85, 0.85, 0.85, 0.95)
+			icon.modulate = Color(1.0, 1.0, 1.0, 1.0)
 
 
-func _on_icon_pressed(idx: int) -> void:
+func _on_icon_mouse_entered(idx: int) -> void:
 	if not _active:
 		return
-	var use_skill: bool = Input.is_key_pressed(KEY_SHIFT)
-	stance_selected.emit(idx, use_skill)
+	if idx == _current_stance:
+		return
+	_hover_idx = idx
+	if Input.is_key_pressed(KEY_SHIFT):
+		stance_aim_requested.emit(idx)
+	else:
+		stance_selected.emit(idx, false)
+
+
+func _on_icon_mouse_exited(idx: int) -> void:
+	if _hover_idx == idx:
+		_hover_idx = -1
 
 
 func _input(event: InputEvent) -> void:
@@ -229,3 +270,8 @@ func _input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		swap_cancelled.emit()
+		return
+	# Shift pressed while already hovering an icon → start swap-skill aim for that stance.
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_SHIFT and _hover_idx != -1 and _hover_idx != _current_stance:
+			stance_aim_requested.emit(_hover_idx)

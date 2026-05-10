@@ -8,7 +8,6 @@ const DASH_SPEED := 2000.0
 const DASH_TIME := 0.18
 const DASH_COOLDOWN := 0.8
 const STANCE_SWAP_COOLDOWN := 2.5
-const STANCE_SWITCH_COOLDOWN := 0.4
 const MANA_PER_HIT := 10
 const STANCE_WATER := 0
 const STANCE_FIRE := 1
@@ -97,6 +96,7 @@ var current_stance: int = STANCE_WATER
 var skill_cd: Array = []
 var active_stance: StancePlayer
 var pending_skill: int = -1
+var pending_swap_stance: int = -1
 var aiming_active: bool = false
 var stance_nodes: Array = []
 
@@ -128,6 +128,7 @@ func _ready() -> void:
 	if swap_aimer:
 		swap_aimer.configure(STANCES, current_stance)
 		swap_aimer.stance_selected.connect(_on_stance_selected)
+		swap_aimer.stance_aim_requested.connect(_on_stance_aim_requested)
 		swap_aimer.swap_cancelled.connect(_on_swap_cancelled)
 	health_changed.emit(health, max_health)
 	mana_changed.emit(mana, max_mana)
@@ -136,7 +137,7 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	if aim_reticle:
-		if aiming_active:
+		if aiming_active or pending_swap_stance != -1:
 			aim_reticle.visible = true
 			aim_reticle.global_position = get_global_mouse_position()
 		else:
@@ -177,11 +178,16 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("attack"):
 		if aiming_active:
 			_execute_pending_skill(get_global_mouse_position())
+		elif pending_swap_stance != -1:
+			var stance := pending_swap_stance
+			pending_swap_stance = -1
+			_execute_swap_skill_at(get_global_mouse_position(), stance)
 		elif attack_cd <= 0.0 and dash_time_left <= 0.0 and swap_time_left <= 0.0:
 			_basic_attack()
 
-	if aiming_active and (Input.is_action_just_pressed("ui_cancel") or Input.is_action_just_pressed("cancel_skill")):
+	if (aiming_active or pending_swap_stance != -1) and (Input.is_action_just_pressed("ui_cancel") or Input.is_action_just_pressed("cancel_skill")):
 		_cancel_skill()
+		pending_swap_stance = -1
 
 	if Input.is_action_just_pressed("dash") and dash_cd <= 0.0 and dash_time_left <= 0.0 and swap_time_left <= 0.0:
 		_do_dash()
@@ -249,7 +255,7 @@ func _update_animation_state() -> void:
 
 
 func _trigger_skill(slot: int) -> void:
-	if pending_skill != -1 or aiming_active or swap_aiming:
+	if pending_skill != -1 or aiming_active or swap_aiming or pending_swap_stance != -1:
 		return
 	if skill_cd[current_stance][slot] > 0.0:
 		return
@@ -466,6 +472,7 @@ func _heal(amount: int) -> void:
 func _open_swap_hud() -> void:
 	if swap_aiming:
 		return
+	pending_swap_stance = -1
 	swap_aiming = true
 	if swap_aimer:
 		swap_aimer.configure(STANCES, current_stance)
@@ -482,14 +489,20 @@ func _close_swap_hud() -> void:
 	get_tree().paused = false
 
 
-func _on_stance_selected(stance_idx: int, use_skill: bool) -> void:
-	_close_swap_hud()
-	if stance_idx == current_stance and not use_skill:
+func _on_stance_selected(stance_idx: int, _use_skill: bool) -> void:
+	# Hover-to-switch: stay in the wheel so the player can keep browsing stances.
+	if stance_idx == current_stance:
 		return
-	if use_skill:
-		_execute_swap_skill(stance_idx)
-	else:
-		_switch_stance(stance_idx)
+	_switch_stance(stance_idx)
+	if swap_aimer:
+		swap_aimer.set_current_stance(current_stance)
+
+
+func _on_stance_aim_requested(stance_idx: int) -> void:
+	if stance_idx == current_stance:
+		return
+	_close_swap_hud()
+	pending_swap_stance = stance_idx
 
 
 func _on_swap_cancelled() -> void:
@@ -499,15 +512,24 @@ func _on_swap_cancelled() -> void:
 func _switch_stance(stance_idx: int) -> void:
 	if stance_idx == current_stance:
 		return
-	stance_swap_cd = STANCE_SWITCH_COOLDOWN
 	current_stance = stance_idx
 	_refresh_active_stance()
 	stance_changed.emit(current_stance)
 
 
-func _execute_swap_skill(target_stance: int) -> void:
+func _execute_swap_skill_at(target_pos: Vector2, target_stance: int) -> void:
+	var dir: Vector2 = target_pos - global_position
+	var dist: float = dir.length()
+	if dist > SWAP_TRAVEL_DISTANCE:
+		dist = SWAP_TRAVEL_DISTANCE
 	var travel_dir: Vector2 = Vector2(float(facing), 0.0)
-	var dist: float = SWAP_TRAVEL_DISTANCE
+	if dir.length_squared() > 1.0:
+		travel_dir = dir.normalized()
+
+	if travel_dir.x > 0.1:
+		_set_facing(1)
+	elif travel_dir.x < -0.1:
+		_set_facing(-1)
 
 	swap_velocity = travel_dir * (dist / SWAP_TRAVEL_TIME)
 	swap_time_left = SWAP_TRAVEL_TIME
@@ -675,6 +697,7 @@ func take_damage(amount: int) -> void:
 		velocity = Vector2.ZERO
 		global_position = spawn_position
 		pending_skill = -1
+		pending_swap_stance = -1
 		aiming_active = false
 		swap_aiming = false
 		swap_velocity = Vector2.ZERO
