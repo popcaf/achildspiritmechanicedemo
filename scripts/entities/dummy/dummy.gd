@@ -4,8 +4,8 @@ const GRAVITY := 1500.0
 const FRICTION := 900.0
 const KNOCKBACK_PER_DAMAGE := 20.0
 const KNOCKBACK_LIFT_RATIO := 0.4
-const DAMAGE_NUMBER := preload("res://scenes/damage_number.tscn")
-const Element := preload("res://scripts/element.gd")
+const DAMAGE_NUMBER := preload("res://scenes/effects/damage_number.tscn")
+const Element := preload("res://scripts/core/element.gd")
 
 @export var max_health: int = 100
 @export_enum("None", "Fire", "Water") var weakness: int = 0

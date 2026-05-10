@@ -1,6 +1,6 @@
 extends CanvasLayer
 
-const HIT_CIRCLE_SCENE := preload("res://scenes/hit_circle.tscn")
+const HIT_CIRCLE_SCENE := preload("res://scenes/ui/cast/hit_circle.tscn")
 const CAST_DURATION := 4.0
 const CIRCLE_COUNT := 3
 

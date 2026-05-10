@@ -68,9 +68,9 @@ const STANCES := [
 	},
 ]
 
-const NEEDLE_SCENE := preload("res://scenes/projectile.tscn")
-const StancePlayer := preload("res://scripts/stance_player.gd")
-const Element := preload("res://scripts/element.gd")
+const NEEDLE_SCENE := preload("res://scenes/entities/projectile/projectile.tscn")
+const StancePlayer := preload("res://scripts/entities/player/stance_player.gd")
+const Element := preload("res://scripts/core/element.gd")
 
 @export var max_health: int = 100
 @export var attack_damage: int = 10

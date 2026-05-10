@@ -1,6 +1,6 @@
 extends Node2D
 
-const DUMMY_SCENE := preload("res://scenes/dummy.tscn")
+const DUMMY_SCENE := preload("res://scenes/entities/dummy/dummy.tscn")
 
 # Weakness values to randomize between when respawning. Defaults to fire+water
 # (1, 2) so every respawn is elemental. Add 0 for the chance of a neutral dummy.

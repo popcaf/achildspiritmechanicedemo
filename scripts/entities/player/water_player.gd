@@ -1,4 +1,4 @@
-extends "res://scripts/stance_player.gd"
+extends "res://scripts/entities/player/stance_player.gd"
 
 
 @warning_ignore("unused_parameter")

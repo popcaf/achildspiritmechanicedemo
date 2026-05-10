@@ -1,6 +1,6 @@
 extends Area2D
 
-const Element := preload("res://scripts/element.gd")
+const Element := preload("res://scripts/core/element.gd")
 
 @export var speed: float = 720.0
 @export var damage: int = 8

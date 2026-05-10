@@ -1,18 +1,18 @@
 [gd_scene load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/wind_player.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/entities/player/water_player.gd" id="1"]
 
-[node name="WindPlayer" type="Node2D"]
+[node name="WaterPlayer" type="Node2D"]
 script = ExtResource("1")
 
 [node name="FlipRoot" type="Node2D" parent="."]
 
 [node name="Body" type="Polygon2D" parent="FlipRoot"]
-color = Color(0.6, 0.95, 0.7, 1)
+color = Color(0.45, 0.78, 1, 1)
 polygon = PackedVector2Array(-10, -28, 10, -28, 14, -8, 10, 28, -10, 28, -14, -8)
 
 [node name="Eye" type="Polygon2D" parent="FlipRoot"]
-color = Color(0.04, 0.1, 0.05, 1)
+color = Color(0.06, 0.06, 0.1, 1)
 polygon = PackedVector2Array(2, -22, 8, -22, 8, -16, 2, -16)
 
 [node name="ProjectileSpawn" type="Marker2D" parent="FlipRoot"]
@@ -29,5 +29,5 @@ polygon = PackedVector2Array(12, -22, 70, -22, 70, 22, 12, 22)
 
 [node name="Visual" type="Polygon2D" parent="FlipRoot/AttackArea"]
 visible = false
-color = Color(0.7, 1, 0.8, 0.45)
+color = Color(0.5, 0.85, 1, 0.45)
 polygon = PackedVector2Array(12, -22, 70, -22, 70, 22, 12, 22)

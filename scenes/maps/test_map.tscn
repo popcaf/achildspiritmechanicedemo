@@ -1,11 +1,11 @@
 [gd_scene format=3 uid="uid://p7yolvkv7al5"]
 
-[ext_resource type="PackedScene" uid="uid://b3n7lf4voo14f" path="res://scenes/player.tscn" id="1"]
-[ext_resource type="PackedScene" uid="uid://b8jvyl5sn0ju8" path="res://scenes/dummy.tscn" id="2"]
-[ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="3"]
-[ext_resource type="Script" uid="uid://6tlrc5iit7ii" path="res://scripts/hazard.gd" id="4"]
-[ext_resource type="Script" uid="uid://beqma65j3jxf" path="res://scripts/dummy_spawner.gd" id="5"]
-[ext_resource type="PackedScene" path="res://scenes/cast_page.tscn" id="6"]
+[ext_resource type="PackedScene" uid="uid://b3n7lf4voo14f" path="res://scenes/entities/player/player.tscn" id="1"]
+[ext_resource type="PackedScene" uid="uid://b8jvyl5sn0ju8" path="res://scenes/entities/dummy/dummy.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud/hud.tscn" id="3"]
+[ext_resource type="Script" uid="uid://6tlrc5iit7ii" path="res://scripts/entities/hazard/hazard.gd" id="4"]
+[ext_resource type="Script" uid="uid://beqma65j3jxf" path="res://scripts/entities/dummy/dummy_spawner.gd" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/ui/cast/cast_page.tscn" id="6"]
 
 [node name="TestMap" type="Node2D" unique_id=1374877108]
 

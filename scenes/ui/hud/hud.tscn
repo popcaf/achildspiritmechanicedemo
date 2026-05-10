@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://cexft2jjjgpc6"]
 
-[ext_resource type="Script" uid="uid://du224q58m3drx" path="res://scripts/hud.gd" id="1"]
-[ext_resource type="PackedScene" path="res://scenes/skill_slot.tscn" id="2"]
+[ext_resource type="Script" uid="uid://du224q58m3drx" path="res://scripts/ui/hud/hud.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud/skill_slot.tscn" id="2"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_BarBg"]
 bg_color = Color(0.08, 0.09, 0.12, 0.92)

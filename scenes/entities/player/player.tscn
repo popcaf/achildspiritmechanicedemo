@@ -1,13 +1,13 @@
 [gd_scene format=3 uid="uid://b3n7lf4voo14f"]
 
-[ext_resource type="Script" uid="uid://c1oyyu6tx8gqy" path="res://scripts/player.gd" id="1"]
-[ext_resource type="PackedScene" path="res://scenes/water_player.tscn" id="2"]
-[ext_resource type="PackedScene" path="res://scenes/fire_player.tscn" id="3"]
-[ext_resource type="Script" uid="uid://deqe1wwv50mlj" path="res://scripts/aim_reticle.gd" id="4"]
-[ext_resource type="Script" uid="uid://05m3ddqd4b0m" path="res://scripts/swap_aimer.gd" id="5"]
-[ext_resource type="PackedScene" path="res://scenes/wind_player.tscn" id="6"]
-[ext_resource type="PackedScene" path="res://scenes/earth_player.tscn" id="7"]
-[ext_resource type="Script" path="res://scripts/swap_range_aimer.gd" id="8"]
+[ext_resource type="Script" uid="uid://c1oyyu6tx8gqy" path="res://scripts/entities/player/player.gd" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/entities/player/water_player.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://scenes/entities/player/fire_player.tscn" id="3"]
+[ext_resource type="Script" uid="uid://deqe1wwv50mlj" path="res://scripts/ui/aim_reticle/aim_reticle.gd" id="4"]
+[ext_resource type="Script" uid="uid://05m3ddqd4b0m" path="res://scripts/ui/swap_wheel/swap_aimer.gd" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/entities/player/wind_player.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://scenes/entities/player/earth_player.tscn" id="7"]
+[ext_resource type="Script" path="res://scripts/ui/swap_wheel/swap_range_aimer.gd" id="8"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_1"]
 radius = 12.0
