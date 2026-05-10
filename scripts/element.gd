@@ -5,3 +5,5 @@ extends RefCounted
 const NEUTRAL := 0
 const FIRE := 1
 const WATER := 2
+const WIND := 3
+const EARTH := 4

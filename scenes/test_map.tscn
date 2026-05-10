@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://p7yolvkv7al5"]
 
-[ext_resource type="PackedScene" path="res://scenes/player.tscn" id="1"]
+[ext_resource type="PackedScene" uid="uid://b3n7lf4voo14f" path="res://scenes/player.tscn" id="1"]
 [ext_resource type="PackedScene" uid="uid://b8jvyl5sn0ju8" path="res://scenes/dummy.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="3"]
 [ext_resource type="Script" uid="uid://6tlrc5iit7ii" path="res://scripts/hazard.gd" id="4"]
@@ -93,6 +93,7 @@ polygon = PackedVector2Array(0, -500, 20, -500, 20, 200, 0, 200)
 polygon = PackedVector2Array(0, -500, 20, -500, 20, 200, 0, 200)
 
 [node name="Spikes" type="Area2D" parent="." unique_id=863701146]
+visible = false
 position = Vector2(80, 200)
 script = ExtResource("4")
 

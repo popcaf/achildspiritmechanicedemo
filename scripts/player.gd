@@ -8,9 +8,12 @@ const DASH_SPEED := 2000.0
 const DASH_TIME := 0.18
 const DASH_COOLDOWN := 0.8
 const STANCE_SWAP_COOLDOWN := 2.5
+const STANCE_SWITCH_COOLDOWN := 0.4
 const MANA_PER_HIT := 10
 const STANCE_WATER := 0
 const STANCE_FIRE := 1
+const STANCE_WIND := 2
+const STANCE_EARTH := 3
 
 const SWAP_TRAVEL_DISTANCE := 240.0
 const SWAP_TRAVEL_TIME := 0.16
@@ -44,6 +47,26 @@ const STANCES := [
 			{"name": "Meteor", "cooldown": 8.0, "mana": 70, "range": 200.0, "color": Color(0.95, 0.25, 0.1, 1.0)},
 		],
 	},
+	{
+		"name": "Wind",
+		"color": Color(0.6, 0.95, 0.7, 1.0),
+		"skills": [
+			{"name": "Gust",    "cooldown": 0.5, "mana": 10, "range": 600.0, "color": Color(0.7, 1.0, 0.8, 1.0)},
+			{"name": "Cyclone", "cooldown": 2.0, "mana": 30, "range": 140.0, "color": Color(0.55, 0.95, 0.85, 1.0)},
+			{"name": "Glide",   "cooldown": 5.0, "mana": 35, "range": 300.0, "color": Color(0.7, 1.0, 0.65, 1.0)},
+			{"name": "Tempest", "cooldown": 8.0, "mana": 70, "range": 220.0, "color": Color(0.4, 0.85, 0.7, 1.0)},
+		],
+	},
+	{
+		"name": "Earth",
+		"color": Color(0.8, 0.6, 0.3, 1.0),
+		"skills": [
+			{"name": "Stone",   "cooldown": 0.6, "mana": 12, "range": 480.0, "color": Color(0.85, 0.7, 0.4, 1.0)},
+			{"name": "Quake",   "cooldown": 2.5, "mana": 35, "range": 160.0, "color": Color(0.75, 0.55, 0.3, 1.0)},
+			{"name": "Bulwark", "cooldown": 6.0, "mana": 45, "range": 0.0,   "color": Color(0.65, 0.5, 0.25, 1.0)},
+			{"name": "Rupture", "cooldown": 8.0, "mana": 70, "range": 220.0, "color": Color(0.95, 0.75, 0.3, 1.0)},
+		],
+	},
 ]
 
 const NEEDLE_SCENE := preload("res://scenes/projectile.tscn")
@@ -71,10 +94,11 @@ var swap_velocity: Vector2 = Vector2.ZERO
 var _swap_phase_active: bool = false
 var stance_swap_cd: float = 0.0
 var current_stance: int = STANCE_WATER
-var skill_cd: Array = [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]
+var skill_cd: Array = []
 var active_stance: StancePlayer
 var pending_skill: int = -1
 var aiming_active: bool = false
+var stance_nodes: Array = []
 
 signal health_changed(current: int, max_value: int)
 signal mana_changed(current: float, max_value: int)
@@ -82,8 +106,10 @@ signal stance_changed(stance: int)
 
 @onready var water_stance: StancePlayer = $StanceHolder/WaterPlayer
 @onready var fire_stance: StancePlayer = $StanceHolder/FirePlayer
+@onready var wind_stance: StancePlayer = $StanceHolder/WindPlayer
+@onready var earth_stance: StancePlayer = $StanceHolder/EarthPlayer
 @onready var aim_reticle: Node2D = $AimReticle
-@onready var swap_aimer: Node2D = $SwapAimer
+@onready var swap_aimer: Node = $SwapAimer
 @onready var cast_page: Node = get_node_or_null(cast_page_path)
 
 
@@ -91,13 +117,17 @@ func _ready() -> void:
 	add_to_group("player")
 	health = max_health
 	mana = float(max_mana)
+	stance_nodes = [water_stance, fire_stance, wind_stance, earth_stance]
+	skill_cd.clear()
+	for _i in range(STANCES.size()):
+		skill_cd.append([0.0, 0.0, 0.0, 0.0])
 	_set_facing(facing)
 	_refresh_active_stance()
 	if aim_reticle:
 		aim_reticle.visible = false
 	if swap_aimer:
-		swap_aimer.radius = SWAP_TRAVEL_DISTANCE
-		swap_aimer.swap_confirmed.connect(_on_swap_confirmed)
+		swap_aimer.configure(STANCES, current_stance)
+		swap_aimer.stance_selected.connect(_on_stance_selected)
 		swap_aimer.swap_cancelled.connect(_on_swap_cancelled)
 	health_changed.emit(health, max_health)
 	mana_changed.emit(mana, max_mana)
@@ -159,7 +189,7 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("stance_toggle") and stance_swap_cd <= 0.0 and not swap_aiming:
 		if aiming_active or pending_skill != -1:
 			_cancel_skill()
-		_toggle_stance()
+		_open_swap_hud()
 
 	if Input.is_action_just_pressed("skill_1"):
 		_trigger_skill(0)
@@ -188,21 +218,21 @@ func _tick_timers(delta: float) -> void:
 
 func _set_facing(direction: int) -> void:
 	facing = direction
-	if water_stance:
-		water_stance.set_facing(direction)
-	if fire_stance:
-		fire_stance.set_facing(direction)
+	for sn in stance_nodes:
+		if sn:
+			sn.set_facing(direction)
 
 
 func _refresh_active_stance() -> void:
-	if current_stance == STANCE_WATER:
-		active_stance = water_stance
-		water_stance.activate()
-		fire_stance.deactivate()
-	else:
-		active_stance = fire_stance
-		fire_stance.activate()
-		water_stance.deactivate()
+	for i in range(stance_nodes.size()):
+		var sn: StancePlayer = stance_nodes[i]
+		if sn == null:
+			continue
+		if i == current_stance:
+			active_stance = sn
+			sn.activate()
+		else:
+			sn.deactivate()
 
 
 func _update_animation_state() -> void:
@@ -230,18 +260,6 @@ func _trigger_skill(slot: int) -> void:
 	mana -= cost
 	mana_changed.emit(mana, max_mana)
 	pending_skill = slot
-	if cast_page == null:
-		aiming_active = true
-		return
-	cast_page.cast_completed.connect(_on_cast_completed, CONNECT_ONE_SHOT)
-	cast_page.start_cast(data)
-
-
-func _on_cast_completed(success: bool) -> void:
-	if not success:
-		pending_skill = -1
-		aiming_active = false
-		return
 	aiming_active = true
 
 
@@ -268,18 +286,31 @@ func _execute_pending_skill(target_pos: Vector2) -> void:
 	elif dx < -1.0:
 		_set_facing(-1)
 
-	if current_stance == STANCE_WATER:
-		match slot:
-			0: _spawn_projectile_at(target_pos, 8, Color(0.5, 0.85, 1.0), range_val)
-			1: _swing_at(target_pos, 28, Color(0.4, 0.7, 1.0), range_val)
-			2: _heal(mend_amount)
-			3: _swing_at(target_pos, 50, Color(0.2, 0.5, 1.0), range_val)
-	else:
-		match slot:
-			0: _spawn_projectile_at(target_pos, 12, Color(1.0, 0.6, 0.2), range_val)
-			1: _swing_at(target_pos, 35, Color(1.0, 0.45, 0.2), range_val)
-			2: _aoe_blast_at(_clamp_target(target_pos, range_val), 22, Color(1.0, 0.85, 0.3), 90.0)
-			3: _swing_at(target_pos, 70, Color(1.0, 0.3, 0.1), range_val)
+	match current_stance:
+		STANCE_WATER:
+			match slot:
+				0: _spawn_projectile_at(target_pos, 8, Color(0.5, 0.85, 1.0), range_val)
+				1: _swing_at(target_pos, 28, Color(0.4, 0.7, 1.0), range_val)
+				2: _heal(mend_amount)
+				3: _swing_at(target_pos, 50, Color(0.2, 0.5, 1.0), range_val)
+		STANCE_FIRE:
+			match slot:
+				0: _spawn_projectile_at(target_pos, 12, Color(1.0, 0.6, 0.2), range_val)
+				1: _swing_at(target_pos, 35, Color(1.0, 0.45, 0.2), range_val)
+				2: _aoe_blast_at(_clamp_target(target_pos, range_val), 22, Color(1.0, 0.85, 0.3), 90.0)
+				3: _swing_at(target_pos, 70, Color(1.0, 0.3, 0.1), range_val)
+		STANCE_WIND:
+			match slot:
+				0: _spawn_projectile_at(target_pos, 9, Color(0.7, 1.0, 0.8), range_val)
+				1: _swing_at(target_pos, 26, Color(0.55, 0.95, 0.85), range_val, 90.0)
+				2: _aoe_blast_at(_clamp_target(target_pos, range_val), 18, Color(0.75, 1.0, 0.85), 110.0)
+				3: _swing_at(target_pos, 55, Color(0.4, 0.85, 0.7), range_val, 90.0)
+		STANCE_EARTH:
+			match slot:
+				0: _spawn_projectile_at(target_pos, 11, Color(0.85, 0.7, 0.4), range_val)
+				1: _aoe_blast_at(global_position, 24, Color(0.75, 0.55, 0.3), 120.0)
+				2: _heal(int(float(mend_amount) * 0.6))
+				3: _swing_at(target_pos, 65, Color(0.95, 0.75, 0.3), range_val, 80.0)
 
 
 func _get_skill_data(slot: int) -> Dictionary:
@@ -394,7 +425,12 @@ func _aoe_blast_at(at_pos: Vector2, damage: int, color: Color, radius: float) ->
 
 
 func _stance_element() -> int:
-	return Element.WATER if current_stance == STANCE_WATER else Element.FIRE
+	match current_stance:
+		STANCE_WATER: return Element.WATER
+		STANCE_FIRE:  return Element.FIRE
+		STANCE_WIND:  return Element.WIND
+		STANCE_EARTH: return Element.EARTH
+		_: return Element.NEUTRAL
 
 
 func _do_dash() -> void:
@@ -427,52 +463,58 @@ func _heal(amount: int) -> void:
 	health_changed.emit(health, max_health)
 
 
-func _toggle_stance() -> void:
+func _open_swap_hud() -> void:
 	if swap_aiming:
 		return
 	swap_aiming = true
 	if swap_aimer:
-		swap_aimer.radius = SWAP_TRAVEL_DISTANCE
+		swap_aimer.configure(STANCES, current_stance)
 		swap_aimer.start_aiming()
 	get_tree().paused = true
 
 
-func _on_swap_confirmed(target_pos: Vector2) -> void:
+func _close_swap_hud() -> void:
+	if not swap_aiming:
+		return
 	swap_aiming = false
 	if swap_aimer:
 		swap_aimer.stop_aiming()
 	get_tree().paused = false
-	_execute_swap(target_pos)
+
+
+func _on_stance_selected(stance_idx: int, use_skill: bool) -> void:
+	_close_swap_hud()
+	if stance_idx == current_stance and not use_skill:
+		return
+	if use_skill:
+		_execute_swap_skill(stance_idx)
+	else:
+		_switch_stance(stance_idx)
 
 
 func _on_swap_cancelled() -> void:
-	swap_aiming = false
-	if swap_aimer:
-		swap_aimer.stop_aiming()
-	get_tree().paused = false
+	_close_swap_hud()
 
 
-func _execute_swap(target_pos: Vector2) -> void:
-	var dir: Vector2 = target_pos - global_position
-	var dist: float = dir.length()
-	if dist > SWAP_TRAVEL_DISTANCE:
-		dist = SWAP_TRAVEL_DISTANCE
+func _switch_stance(stance_idx: int) -> void:
+	if stance_idx == current_stance:
+		return
+	stance_swap_cd = STANCE_SWITCH_COOLDOWN
+	current_stance = stance_idx
+	_refresh_active_stance()
+	stance_changed.emit(current_stance)
+
+
+func _execute_swap_skill(target_stance: int) -> void:
 	var travel_dir: Vector2 = Vector2(float(facing), 0.0)
-	if dir.length_squared() > 1.0:
-		travel_dir = dir.normalized()
-
-	if travel_dir.x > 0.1:
-		_set_facing(1)
-	elif travel_dir.x < -0.1:
-		_set_facing(-1)
+	var dist: float = SWAP_TRAVEL_DISTANCE
 
 	swap_velocity = travel_dir * (dist / SWAP_TRAVEL_TIME)
 	swap_time_left = SWAP_TRAVEL_TIME
 	stance_swap_cd = STANCE_SWAP_COOLDOWN
 	_begin_swap_phase()
-	# Flip the stance FIRST so both swap effects deal damage in the new element
-	# (the one the player is swapping into), and pick up the matching color.
-	current_stance = STANCE_FIRE if current_stance == STANCE_WATER else STANCE_WATER
+	# Flip stance FIRST so both swap effects use the destination element/color.
+	current_stance = target_stance
 	_refresh_active_stance()
 	stance_changed.emit(current_stance)
 	_do_swap_attack(travel_dir, dist)
@@ -480,7 +522,7 @@ func _execute_swap(target_pos: Vector2) -> void:
 
 
 func _do_swap_attack(travel_dir: Vector2, length: float) -> void:
-	# Stance has already been flipped by _execute_swap, so this reads the NEW
+	# Stance has already been flipped by _execute_swap_skill, so this reads the NEW
 	# element/color — the one the player is swapping INTO.
 	var elem := _stance_element()
 	var color := _stance_color()

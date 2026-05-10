@@ -66,7 +66,7 @@ func _on_mana_changed(current: float, max_value: int) -> void:
 func _on_stance_changed(stance: int) -> void:
 	var data: Dictionary = player.STANCES[stance]
 	var name_str: String = data.name
-	stance_label.text = "%s STANCE   ·   Q to swap" % name_str.to_upper()
+	stance_label.text = "%s STANCE   ·   hold Q for swap menu" % name_str.to_upper()
 	stance_label.modulate = data.color
 	var skills: Array = data.skills
 	for i in range(slots.size()):

@@ -2,7 +2,7 @@ extends CharacterBody2D
 
 const GRAVITY := 1500.0
 const FRICTION := 900.0
-const KNOCKBACK_PER_DAMAGE := 12.0
+const KNOCKBACK_PER_DAMAGE := 20.0
 const KNOCKBACK_LIFT_RATIO := 0.4
 const DAMAGE_NUMBER := preload("res://scenes/damage_number.tscn")
 const Element := preload("res://scripts/element.gd")
