@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/player.tscn" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/dummy.tscn" id="2"]
 [ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="3"]
 [ext_resource type="Script" path="res://scripts/hazard.gd" id="4"]
 [ext_resource type="Script" path="res://scripts/dummy_spawner.gd" id="5"]
+[ext_resource type="PackedScene" path="res://scenes/cast_page.tscn" id="6"]
 
 [node name="TestMap" type="Node2D"]
 
@@ -143,3 +144,5 @@ position = Vector2(950, 184)
 weakness = 2
 
 [node name="HUD" parent="." instance=ExtResource("3")]
+
+[node name="CastPage" parent="." instance=ExtResource("6")]

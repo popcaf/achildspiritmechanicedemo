@@ -4,7 +4,7 @@ const GRAVITY := 1500.0
 const DAMAGE_NUMBER := preload("res://scenes/damage_number.tscn")
 const Element := preload("res://scripts/element.gd")
 
-@export var max_health: int = 50
+@export var max_health: int = 100
 @export_enum("None", "Fire", "Water") var weakness: int = 0
 
 var health: int

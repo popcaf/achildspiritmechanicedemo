@@ -1,10 +1,10 @@
 extends CharacterBody2D
 
 const GRAVITY := 1500.0
-const MOVE_SPEED := 260.0
-const JUMP_VELOCITY := -520.0
+const MOVE_SPEED := 650.0
+const JUMP_VELOCITY := -750.0
 const MAX_AIR_JUMPS := 1
-const DASH_SPEED := 720.0
+const DASH_SPEED := 2000.0
 const DASH_TIME := 0.18
 const DASH_COOLDOWN := 0.8
 const STANCE_SWAP_COOLDOWN := 0.3
@@ -45,6 +45,7 @@ const Element := preload("res://scripts/element.gd")
 @export var max_mana: int = 100
 @export var mend_amount: int = 30
 @export var spawn_position: Vector2 = Vector2(-500, 100)
+@export var cast_page_path: NodePath = ^"../CastPage"
 
 var health: int
 var mana: float
@@ -57,6 +58,8 @@ var stance_swap_cd: float = 0.0
 var current_stance: int = STANCE_WATER
 var skill_cd: Array = [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]
 var active_stance: StancePlayer
+var pending_skill: int = -1
+var aiming_active: bool = false
 
 signal health_changed(current: int, max_value: int)
 signal mana_changed(current: float, max_value: int)
@@ -64,6 +67,8 @@ signal stance_changed(stance: int)
 
 @onready var water_stance: StancePlayer = $StanceHolder/WaterPlayer
 @onready var fire_stance: StancePlayer = $StanceHolder/FirePlayer
+@onready var aim_reticle: Node2D = $AimReticle
+@onready var cast_page: Node = get_node_or_null(cast_page_path)
 
 
 func _ready() -> void:
@@ -72,9 +77,20 @@ func _ready() -> void:
 	mana = float(max_mana)
 	_set_facing(facing)
 	_refresh_active_stance()
+	if aim_reticle:
+		aim_reticle.visible = false
 	health_changed.emit(health, max_health)
 	mana_changed.emit(mana, max_mana)
 	stance_changed.emit(current_stance)
+
+
+func _process(_delta: float) -> void:
+	if aim_reticle:
+		if aiming_active:
+			aim_reticle.visible = true
+			aim_reticle.global_position = get_global_mouse_position()
+		else:
+			aim_reticle.visible = false
 
 
 func _physics_process(delta: float) -> void:
@@ -106,8 +122,14 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_update_animation_state()
 
-	if Input.is_action_just_pressed("attack") and attack_cd <= 0.0 and dash_time_left <= 0.0:
-		_basic_attack()
+	if Input.is_action_just_pressed("attack"):
+		if aiming_active:
+			_execute_pending_skill(get_global_mouse_position())
+		elif attack_cd <= 0.0 and dash_time_left <= 0.0:
+			_basic_attack()
+
+	if Input.is_action_just_pressed("ui_cancel") and aiming_active:
+		_cancel_aim()
 
 	if Input.is_action_just_pressed("dash") and dash_cd <= 0.0 and dash_time_left <= 0.0:
 		_do_dash()
@@ -168,17 +190,70 @@ func _update_animation_state() -> void:
 		active_stance.play_state("idle")
 
 
-func _try_use_skill(slot: int) -> bool:
+func _trigger_skill(slot: int) -> void:
+	if pending_skill != -1 or aiming_active:
+		return
 	if skill_cd[current_stance][slot] > 0.0:
-		return false
+		return
+	var data: Dictionary = _get_skill_data(slot)
+	if mana < float(data.mana):
+		return
+	pending_skill = slot
+	if cast_page == null:
+		# No cast page available: skip rhythm and go straight to aiming.
+		aiming_active = true
+		return
+	cast_page.cast_completed.connect(_on_cast_completed, CONNECT_ONE_SHOT)
+	cast_page.start_cast(data)
+
+
+func _on_cast_completed(success: bool) -> void:
+	if not success:
+		pending_skill = -1
+		aiming_active = false
+		return
+	aiming_active = true
+
+
+func _cancel_aim() -> void:
+	aiming_active = false
+	pending_skill = -1
+
+
+func _execute_pending_skill(target_pos: Vector2) -> void:
+	if pending_skill < 0:
+		aiming_active = false
+		return
+	var slot := pending_skill
+	pending_skill = -1
+	aiming_active = false
+
 	var data: Dictionary = _get_skill_data(slot)
 	var cost: float = float(data.mana)
 	if mana < cost:
-		return false
+		return
 	mana -= cost
 	mana_changed.emit(mana, max_mana)
 	skill_cd[current_stance][slot] = float(data.cooldown)
-	return true
+
+	var dx := target_pos.x - global_position.x
+	if dx > 1.0:
+		_set_facing(1)
+	elif dx < -1.0:
+		_set_facing(-1)
+
+	if current_stance == STANCE_WATER:
+		match slot:
+			0: _spawn_projectile(8, Color(0.5, 0.85, 1.0))
+			1: _heavy_swing(28, Color(0.4, 0.7, 1.0))
+			2: _heal(mend_amount)
+			3: _heavy_swing(50, Color(0.2, 0.5, 1.0))
+	else:
+		match slot:
+			0: _spawn_projectile(12, Color(1.0, 0.6, 0.2))
+			1: _heavy_swing(35, Color(1.0, 0.45, 0.2))
+			2: _aoe_blast_at(target_pos, 22, Color(1.0, 0.85, 0.3), 90.0)
+			3: _heavy_swing(70, Color(1.0, 0.3, 0.1))
 
 
 func _get_skill_data(slot: int) -> Dictionary:
@@ -225,7 +300,7 @@ func _spawn_projectile(damage: int, color: Color) -> void:
 	p.configure(damage, color, _stance_element())
 
 
-func _aoe_blast(damage: int, color: Color, radius: float) -> void:
+func _aoe_blast_at(at_pos: Vector2, damage: int, color: Color, radius: float) -> void:
 	var elem := _stance_element()
 	var area := Area2D.new()
 	area.collision_layer = 0
@@ -248,7 +323,7 @@ func _aoe_blast(damage: int, color: Color, radius: float) -> void:
 	visual.polygon = pts
 	area.add_child(visual)
 
-	area.global_position = global_position
+	area.global_position = at_pos
 	get_tree().current_scene.add_child(area)
 
 	await get_tree().physics_frame
@@ -268,23 +343,6 @@ func _stance_element() -> int:
 func _do_dash() -> void:
 	dash_time_left = DASH_TIME
 	dash_cd = DASH_COOLDOWN
-
-
-func _trigger_skill(slot: int) -> void:
-	if not _try_use_skill(slot):
-		return
-	if current_stance == STANCE_WATER:
-		match slot:
-			0: _spawn_projectile(8, Color(0.5, 0.85, 1.0))
-			1: _heavy_swing(28, Color(0.4, 0.7, 1.0))
-			2: _heal(mend_amount)
-			3: _heavy_swing(50, Color(0.2, 0.5, 1.0))
-	else:
-		match slot:
-			0: _spawn_projectile(12, Color(1.0, 0.6, 0.2))
-			1: _heavy_swing(35, Color(1.0, 0.45, 0.2))
-			2: _aoe_blast(22, Color(1.0, 0.85, 0.3), 90.0)
-			3: _heavy_swing(70, Color(1.0, 0.3, 0.1))
 
 
 func _heal(amount: int) -> void:
@@ -344,5 +402,7 @@ func take_damage(amount: int) -> void:
 		mana = float(max_mana)
 		velocity = Vector2.ZERO
 		global_position = spawn_position
+		pending_skill = -1
+		aiming_active = false
 		health_changed.emit(health, max_health)
 		mana_changed.emit(mana, max_mana)
