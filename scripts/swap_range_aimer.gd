@@ -72,6 +72,3 @@ func _unhandled_input(event: InputEvent) -> void:
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT:
 		aim_cancelled.emit()
-		return
-	if event.is_action_released("stance_toggle"):
-		aim_cancelled.emit()
