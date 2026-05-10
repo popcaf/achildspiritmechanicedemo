@@ -76,10 +76,11 @@ func _process(_delta: float) -> void:
 func _input(event: InputEvent) -> void:
 	if not _active:
 		return
+	if event.is_action_pressed("cancel_skill") or event.is_action_pressed("stance_toggle") or event.is_action_pressed("ui_cancel"):
+		_cancel()
+		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_try_click()
-	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		_cancel()
 
 
 func _try_click() -> void:

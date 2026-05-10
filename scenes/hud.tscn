@@ -129,14 +129,16 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -196.0
+offset_left = -236.0
 offset_top = -88.0
-offset_right = 196.0
+offset_right = 236.0
 offset_bottom = -16.0
 theme_override_constants/separation = 8
 mouse_filter = 2
 
 [node name="DashSlot" parent="Root/SkillBar" instance=ExtResource("2")]
+
+[node name="SwapSlot" parent="Root/SkillBar" instance=ExtResource("2")]
 
 [node name="Slot1" parent="Root/SkillBar" instance=ExtResource("2")]
 
@@ -153,7 +155,7 @@ offset_left = 16.0
 offset_top = -28.0
 offset_right = 880.0
 offset_bottom = -8.0
-text = "AD: move   Space: jump (×2)   ⇧ Shift: dash   LMB: attack   Q: swap stance   1-4: skills"
+text = "AD: move   Space: jump   ⇧ dash   LMB: attack/cast   RMB: cancel   Q: swap stance   1-4: skills"
 theme_override_colors/font_color = Color(0.85, 0.88, 0.95, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 3

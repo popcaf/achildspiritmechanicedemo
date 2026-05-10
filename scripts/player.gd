@@ -1,36 +1,47 @@
 extends CharacterBody2D
 
-const GRAVITY := 1500.0
+const GRAVITY := 3000.0
 const MOVE_SPEED := 650.0
-const JUMP_VELOCITY := -750.0
+const JUMP_VELOCITY := -850.0
 const MAX_AIR_JUMPS := 1
 const DASH_SPEED := 2000.0
 const DASH_TIME := 0.18
 const DASH_COOLDOWN := 0.8
-const STANCE_SWAP_COOLDOWN := 0.3
+const STANCE_SWAP_COOLDOWN := 2.5
 const MANA_PER_HIT := 10
 const STANCE_WATER := 0
 const STANCE_FIRE := 1
+
+const SWAP_TRAVEL_DISTANCE := 240.0
+const SWAP_TRAVEL_TIME := 0.16
+const SWAP_DAMAGE := 18
+const SWAP_SWEEP_HEIGHT := 80.0
+const SWAP_KNOCKBACK_X := 380.0
+const SWAP_KNOCKBACK_Y := -200.0
+const SWAP_AOE_RADIUS := 110.0
+const SWAP_AOE_DAMAGE := 8
+const SWAP_AOE_KNOCKBACK := 380.0
+const SWAP_AOE_LIFT := -280.0
 
 const STANCES := [
 	{
 		"name": "Water",
 		"color": Color(0.45, 0.78, 1.0, 1.0),
 		"skills": [
-			{"name": "Frost",  "cooldown": 0.6, "mana": 10, "color": Color(0.5, 0.85, 1.0, 1.0)},
-			{"name": "Tide",   "cooldown": 2.0, "mana": 30, "color": Color(0.25, 0.6, 1.0, 1.0)},
-			{"name": "Mend",   "cooldown": 6.0, "mana": 50, "color": Color(0.5, 1.0, 0.75, 1.0)},
-			{"name": "Wave",   "cooldown": 8.0, "mana": 70, "color": Color(0.15, 0.4, 0.95, 1.0)},
+			{"name": "Frost",  "cooldown": 0.6, "mana": 10, "range": 520.0, "color": Color(0.5, 0.85, 1.0, 1.0)},
+			{"name": "Tide",   "cooldown": 2.0, "mana": 30, "range": 130.0, "color": Color(0.25, 0.6, 1.0, 1.0)},
+			{"name": "Mend",   "cooldown": 6.0, "mana": 50, "range": 0.0,   "color": Color(0.5, 1.0, 0.75, 1.0)},
+			{"name": "Wave",   "cooldown": 8.0, "mana": 70, "range": 220.0, "color": Color(0.15, 0.4, 0.95, 1.0)},
 		],
 	},
 	{
 		"name": "Fire",
 		"color": Color(1.0, 0.55, 0.25, 1.0),
 		"skills": [
-			{"name": "Bolt",   "cooldown": 0.5, "mana": 12, "color": Color(1.0, 0.65, 0.25, 1.0)},
-			{"name": "Flame",  "cooldown": 1.5, "mana": 30, "color": Color(1.0, 0.4, 0.15, 1.0)},
-			{"name": "Ignite", "cooldown": 3.0, "mana": 35, "color": Color(1.0, 0.85, 0.35, 1.0)},
-			{"name": "Meteor", "cooldown": 8.0, "mana": 70, "color": Color(0.95, 0.25, 0.1, 1.0)},
+			{"name": "Bolt",   "cooldown": 0.5, "mana": 12, "range": 820.0, "color": Color(1.0, 0.65, 0.25, 1.0)},
+			{"name": "Flame",  "cooldown": 1.5, "mana": 30, "range": 90.0,  "color": Color(1.0, 0.4, 0.15, 1.0)},
+			{"name": "Ignite", "cooldown": 3.0, "mana": 35, "range": 280.0, "color": Color(1.0, 0.85, 0.35, 1.0)},
+			{"name": "Meteor", "cooldown": 8.0, "mana": 70, "range": 200.0, "color": Color(0.95, 0.25, 0.1, 1.0)},
 		],
 	},
 ]
@@ -54,6 +65,10 @@ var air_jumps_left: int = MAX_AIR_JUMPS
 var attack_cd: float = 0.0
 var dash_time_left: float = 0.0
 var dash_cd: float = 0.0
+var swap_time_left: float = 0.0
+var swap_aiming: bool = false
+var swap_velocity: Vector2 = Vector2.ZERO
+var _swap_phase_active: bool = false
 var stance_swap_cd: float = 0.0
 var current_stance: int = STANCE_WATER
 var skill_cd: Array = [[0.0, 0.0, 0.0, 0.0], [0.0, 0.0, 0.0, 0.0]]
@@ -68,6 +83,7 @@ signal stance_changed(stance: int)
 @onready var water_stance: StancePlayer = $StanceHolder/WaterPlayer
 @onready var fire_stance: StancePlayer = $StanceHolder/FirePlayer
 @onready var aim_reticle: Node2D = $AimReticle
+@onready var swap_aimer: Node2D = $SwapAimer
 @onready var cast_page: Node = get_node_or_null(cast_page_path)
 
 
@@ -79,6 +95,10 @@ func _ready() -> void:
 	_refresh_active_stance()
 	if aim_reticle:
 		aim_reticle.visible = false
+	if swap_aimer:
+		swap_aimer.radius = SWAP_TRAVEL_DISTANCE
+		swap_aimer.swap_confirmed.connect(_on_swap_confirmed)
+		swap_aimer.swap_cancelled.connect(_on_swap_cancelled)
 	health_changed.emit(health, max_health)
 	mana_changed.emit(mana, max_mana)
 	stance_changed.emit(current_stance)
@@ -105,6 +125,8 @@ func _physics_process(delta: float) -> void:
 	if dash_time_left > 0.0:
 		velocity.x = float(facing) * DASH_SPEED
 		velocity.y = 0.0
+	elif swap_time_left > 0.0:
+		velocity = swap_velocity
 	else:
 		velocity.x = input_x * MOVE_SPEED
 		velocity.y += GRAVITY * delta
@@ -125,16 +147,18 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("attack"):
 		if aiming_active:
 			_execute_pending_skill(get_global_mouse_position())
-		elif attack_cd <= 0.0 and dash_time_left <= 0.0:
+		elif attack_cd <= 0.0 and dash_time_left <= 0.0 and swap_time_left <= 0.0:
 			_basic_attack()
 
-	if Input.is_action_just_pressed("ui_cancel") and aiming_active:
-		_cancel_aim()
+	if aiming_active and (Input.is_action_just_pressed("ui_cancel") or Input.is_action_just_pressed("cancel_skill")):
+		_cancel_skill()
 
-	if Input.is_action_just_pressed("dash") and dash_cd <= 0.0 and dash_time_left <= 0.0:
+	if Input.is_action_just_pressed("dash") and dash_cd <= 0.0 and dash_time_left <= 0.0 and swap_time_left <= 0.0:
 		_do_dash()
 
-	if Input.is_action_just_pressed("stance_toggle") and stance_swap_cd <= 0.0:
+	if Input.is_action_just_pressed("stance_toggle") and stance_swap_cd <= 0.0 and not swap_aiming:
+		if aiming_active or pending_skill != -1:
+			_cancel_skill()
 		_toggle_stance()
 
 	if Input.is_action_just_pressed("skill_1"):
@@ -146,11 +170,15 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("skill_4"):
 		_trigger_skill(3)
 
+	if _swap_phase_active and swap_time_left <= 0.0:
+		_end_swap_phase()
+
 
 func _tick_timers(delta: float) -> void:
 	attack_cd = maxf(0.0, attack_cd - delta)
 	dash_time_left = maxf(0.0, dash_time_left - delta)
 	dash_cd = maxf(0.0, dash_cd - delta)
+	swap_time_left = maxf(0.0, swap_time_left - delta)
 	stance_swap_cd = maxf(0.0, stance_swap_cd - delta)
 	for stance_idx in range(skill_cd.size()):
 		var arr: Array = skill_cd[stance_idx]
@@ -180,7 +208,7 @@ func _refresh_active_stance() -> void:
 func _update_animation_state() -> void:
 	if active_stance == null:
 		return
-	if dash_time_left > 0.0:
+	if dash_time_left > 0.0 or swap_time_left > 0.0:
 		active_stance.play_state("dash")
 	elif not is_on_floor():
 		active_stance.play_state("jump" if velocity.y < 0.0 else "fall")
@@ -191,16 +219,18 @@ func _update_animation_state() -> void:
 
 
 func _trigger_skill(slot: int) -> void:
-	if pending_skill != -1 or aiming_active:
+	if pending_skill != -1 or aiming_active or swap_aiming:
 		return
 	if skill_cd[current_stance][slot] > 0.0:
 		return
 	var data: Dictionary = _get_skill_data(slot)
-	if mana < float(data.mana):
+	var cost: float = float(data.mana)
+	if mana < cost:
 		return
+	mana -= cost
+	mana_changed.emit(mana, max_mana)
 	pending_skill = slot
 	if cast_page == null:
-		# No cast page available: skip rhythm and go straight to aiming.
 		aiming_active = true
 		return
 	cast_page.cast_completed.connect(_on_cast_completed, CONNECT_ONE_SHOT)
@@ -215,7 +245,7 @@ func _on_cast_completed(success: bool) -> void:
 	aiming_active = true
 
 
-func _cancel_aim() -> void:
+func _cancel_skill() -> void:
 	aiming_active = false
 	pending_skill = -1
 
@@ -229,12 +259,8 @@ func _execute_pending_skill(target_pos: Vector2) -> void:
 	aiming_active = false
 
 	var data: Dictionary = _get_skill_data(slot)
-	var cost: float = float(data.mana)
-	if mana < cost:
-		return
-	mana -= cost
-	mana_changed.emit(mana, max_mana)
 	skill_cd[current_stance][slot] = float(data.cooldown)
+	var range_val: float = float(data.get("range", 100.0))
 
 	var dx := target_pos.x - global_position.x
 	if dx > 1.0:
@@ -244,16 +270,16 @@ func _execute_pending_skill(target_pos: Vector2) -> void:
 
 	if current_stance == STANCE_WATER:
 		match slot:
-			0: _spawn_projectile(8, Color(0.5, 0.85, 1.0))
-			1: _heavy_swing(28, Color(0.4, 0.7, 1.0))
+			0: _spawn_projectile_at(target_pos, 8, Color(0.5, 0.85, 1.0), range_val)
+			1: _swing_at(target_pos, 28, Color(0.4, 0.7, 1.0), range_val)
 			2: _heal(mend_amount)
-			3: _heavy_swing(50, Color(0.2, 0.5, 1.0))
+			3: _swing_at(target_pos, 50, Color(0.2, 0.5, 1.0), range_val)
 	else:
 		match slot:
-			0: _spawn_projectile(12, Color(1.0, 0.6, 0.2))
-			1: _heavy_swing(35, Color(1.0, 0.45, 0.2))
-			2: _aoe_blast_at(target_pos, 22, Color(1.0, 0.85, 0.3), 90.0)
-			3: _heavy_swing(70, Color(1.0, 0.3, 0.1))
+			0: _spawn_projectile_at(target_pos, 12, Color(1.0, 0.6, 0.2), range_val)
+			1: _swing_at(target_pos, 35, Color(1.0, 0.45, 0.2), range_val)
+			2: _aoe_blast_at(_clamp_target(target_pos, range_val), 22, Color(1.0, 0.85, 0.3), 90.0)
+			3: _swing_at(target_pos, 70, Color(1.0, 0.3, 0.1), range_val)
 
 
 func _get_skill_data(slot: int) -> Dictionary:
@@ -270,7 +296,7 @@ func _basic_attack() -> void:
 	var hits := 0
 	for body in stance.get_attack_area().get_overlapping_bodies():
 		if body.has_method("take_damage"):
-			body.take_damage(attack_damage, elem)
+			body.take_damage(attack_damage, elem, global_position)
 			hits += 1
 	if hits > 0:
 		_add_mana(MANA_PER_HIT * hits)
@@ -278,26 +304,57 @@ func _basic_attack() -> void:
 	stance.hide_attack()
 
 
-func _heavy_swing(damage: int, color: Color) -> void:
-	var stance := active_stance
+func _swing_at(target_pos: Vector2, damage: int, color: Color, length: float, width: float = 70.0) -> void:
 	var elem := _stance_element()
-	attack_cd = attack_cooldown
-	stance.show_attack(color)
-	stance.play_state("heavy")
+	var area := Area2D.new()
+	area.collision_layer = 0
+	area.collision_mask = 32
+	area.monitorable = false
+
+	var coll := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = Vector2(length, width)
+	coll.shape = rect
+	coll.position = Vector2(length / 2.0, 0.0)
+	area.add_child(coll)
+
+	var visual := Polygon2D.new()
+	visual.color = Color(color.r, color.g, color.b, 0.45)
+	visual.polygon = PackedVector2Array([
+		Vector2(0.0, -width / 2.0),
+		Vector2(length, -width / 2.0),
+		Vector2(length, width / 2.0),
+		Vector2(0.0, width / 2.0),
+	])
+	area.add_child(visual)
+
+	area.global_position = global_position
+	var dir: Vector2 = target_pos - global_position
+	if dir.length_squared() < 1.0:
+		dir = Vector2(float(facing), 0.0)
+	area.rotation = dir.angle()
+
+	get_tree().current_scene.add_child(area)
+
 	await get_tree().physics_frame
-	for body in stance.get_attack_area().get_overlapping_bodies():
+	for body in area.get_overlapping_bodies():
 		if body.has_method("take_damage"):
-			body.take_damage(damage, elem)
-	await get_tree().create_timer(0.08).timeout
-	stance.hide_attack()
+			body.take_damage(damage, elem, global_position)
+
+	var t := area.create_tween()
+	t.tween_property(visual, "modulate:a", 0.0, 0.2)
+	t.finished.connect(area.queue_free, CONNECT_ONE_SHOT)
 
 
-func _spawn_projectile(damage: int, color: Color) -> void:
+func _spawn_projectile_at(target_pos: Vector2, damage: int, color: Color, range_limit: float) -> void:
 	var p: Area2D = NEEDLE_SCENE.instantiate()
 	get_tree().current_scene.add_child(p)
 	p.global_position = active_stance.get_projectile_spawn_position()
-	p.set_direction(facing)
-	p.configure(damage, color, _stance_element())
+	var dir: Vector2 = target_pos - p.global_position
+	if dir.length_squared() < 1.0:
+		dir = Vector2(float(facing), 0.0)
+	p.set_velocity(dir.normalized())
+	p.configure(damage, color, _stance_element(), range_limit)
 
 
 func _aoe_blast_at(at_pos: Vector2, damage: int, color: Color, radius: float) -> void:
@@ -329,7 +386,7 @@ func _aoe_blast_at(at_pos: Vector2, damage: int, color: Color, radius: float) ->
 	await get_tree().physics_frame
 	for body in area.get_overlapping_bodies():
 		if body.has_method("take_damage"):
-			body.take_damage(damage, elem)
+			body.take_damage(damage, elem, at_pos)
 
 	var t := area.create_tween()
 	t.tween_property(visual, "modulate:a", 0.0, 0.3)
@@ -345,16 +402,172 @@ func _do_dash() -> void:
 	dash_cd = DASH_COOLDOWN
 
 
+func _begin_swap_phase() -> void:
+	# During the swap dash, ignore collisions with dummies so the player can
+	# pass through them. Walls (not in the "dummy" group) still block normally.
+	if _swap_phase_active:
+		return
+	_swap_phase_active = true
+	for d in get_tree().get_nodes_in_group("dummy"):
+		if d is PhysicsBody2D:
+			add_collision_exception_with(d)
+
+
+func _end_swap_phase() -> void:
+	if not _swap_phase_active:
+		return
+	_swap_phase_active = false
+	for d in get_tree().get_nodes_in_group("dummy"):
+		if d is PhysicsBody2D and is_instance_valid(d):
+			remove_collision_exception_with(d)
+
+
 func _heal(amount: int) -> void:
 	health = mini(max_health, health + amount)
 	health_changed.emit(health, max_health)
 
 
 func _toggle_stance() -> void:
-	current_stance = STANCE_FIRE if current_stance == STANCE_WATER else STANCE_WATER
+	if swap_aiming:
+		return
+	swap_aiming = true
+	if swap_aimer:
+		swap_aimer.radius = SWAP_TRAVEL_DISTANCE
+		swap_aimer.start_aiming()
+	get_tree().paused = true
+
+
+func _on_swap_confirmed(target_pos: Vector2) -> void:
+	swap_aiming = false
+	if swap_aimer:
+		swap_aimer.stop_aiming()
+	get_tree().paused = false
+	_execute_swap(target_pos)
+
+
+func _on_swap_cancelled() -> void:
+	swap_aiming = false
+	if swap_aimer:
+		swap_aimer.stop_aiming()
+	get_tree().paused = false
+
+
+func _execute_swap(target_pos: Vector2) -> void:
+	var dir: Vector2 = target_pos - global_position
+	var dist: float = dir.length()
+	if dist > SWAP_TRAVEL_DISTANCE:
+		dist = SWAP_TRAVEL_DISTANCE
+	var travel_dir: Vector2 = Vector2(float(facing), 0.0)
+	if dir.length_squared() > 1.0:
+		travel_dir = dir.normalized()
+
+	if travel_dir.x > 0.1:
+		_set_facing(1)
+	elif travel_dir.x < -0.1:
+		_set_facing(-1)
+
+	swap_velocity = travel_dir * (dist / SWAP_TRAVEL_TIME)
+	swap_time_left = SWAP_TRAVEL_TIME
 	stance_swap_cd = STANCE_SWAP_COOLDOWN
+	_begin_swap_phase()
+	# Flip the stance FIRST so both swap effects deal damage in the new element
+	# (the one the player is swapping into), and pick up the matching color.
+	current_stance = STANCE_FIRE if current_stance == STANCE_WATER else STANCE_WATER
 	_refresh_active_stance()
 	stance_changed.emit(current_stance)
+	_do_swap_attack(travel_dir, dist)
+	_do_swap_aoe(global_position + travel_dir * dist)
+
+
+func _do_swap_attack(travel_dir: Vector2, length: float) -> void:
+	# Stance has already been flipped by _execute_swap, so this reads the NEW
+	# element/color — the one the player is swapping INTO.
+	var elem := _stance_element()
+	var color := _stance_color()
+	var area := Area2D.new()
+	area.collision_layer = 0
+	area.collision_mask = 32
+	area.monitorable = false
+
+	var height := SWAP_SWEEP_HEIGHT
+
+	var coll := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = Vector2(length, height)
+	coll.shape = rect
+	coll.position = Vector2(length / 2.0, 0.0)
+	area.add_child(coll)
+
+	var visual := Polygon2D.new()
+	visual.color = Color(color.r, color.g, color.b, 0.5)
+	visual.polygon = PackedVector2Array([
+		Vector2(0.0, -height / 2.0),
+		Vector2(length, -height / 2.0),
+		Vector2(length, height / 2.0),
+		Vector2(0.0, height / 2.0),
+	])
+	area.add_child(visual)
+
+	area.global_position = global_position
+	area.rotation = travel_dir.angle()
+
+	get_tree().current_scene.add_child(area)
+
+	await get_tree().physics_frame
+	for body in area.get_overlapping_bodies():
+		if body.has_method("take_damage"):
+			body.take_damage(SWAP_DAMAGE, elem, global_position)
+
+	var t := area.create_tween()
+	t.tween_property(visual, "modulate:a", 0.0, 0.25)
+	t.finished.connect(area.queue_free, CONNECT_ONE_SHOT)
+
+
+func _do_swap_aoe(at_pos: Vector2) -> void:
+	# Circular shockwave at the landing point. Damages a little, knocks dummies
+	# radially outward and up. Uses a synchronous physics query so damage
+	# resolves immediately rather than depending on a deferred Area2D update.
+	var elem := _stance_element()
+	var color := _stance_color()
+
+	var space_state := get_world_2d().direct_space_state
+	var query := PhysicsShapeQueryParameters2D.new()
+	var query_shape := CircleShape2D.new()
+	query_shape.radius = SWAP_AOE_RADIUS
+	query.shape = query_shape
+	query.transform = Transform2D(0.0, at_pos)
+	query.collision_mask = 32
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+
+	var hits: Array = space_state.intersect_shape(query, 32)
+	for hit in hits:
+		var body: Object = hit.get("collider")
+		if body == null:
+			continue
+		if body.has_method("take_damage"):
+			body.take_damage(SWAP_AOE_DAMAGE, elem, at_pos)
+
+	# Visual-only shockwave (collision was handled by the query above).
+	var visual := Polygon2D.new()
+	visual.color = Color(color.r, color.g, color.b, 0.5)
+	var pts := PackedVector2Array()
+	var n := 28
+	for i in range(n):
+		var a: float = float(i) * TAU / float(n)
+		pts.append(Vector2(cos(a), sin(a)) * SWAP_AOE_RADIUS)
+	visual.polygon = pts
+	visual.scale = Vector2(0.4, 0.4)
+
+	get_tree().current_scene.add_child(visual)
+	visual.global_position = at_pos
+
+	var t := visual.create_tween()
+	t.set_parallel(true)
+	t.tween_property(visual, "scale", Vector2.ONE, 0.22) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	t.tween_property(visual, "modulate:a", 0.0, 0.36)
+	t.finished.connect(visual.queue_free, CONNECT_ONE_SHOT)
 
 
 func _stance_color() -> Color:
@@ -366,6 +579,15 @@ func _add_mana(amount: float) -> void:
 		return
 	mana = minf(float(max_mana), mana + amount)
 	mana_changed.emit(mana, max_mana)
+
+
+func _clamp_target(target_pos: Vector2, max_range: float) -> Vector2:
+	if max_range <= 0.0:
+		return target_pos
+	var to_target: Vector2 = target_pos - global_position
+	if to_target.length() <= max_range:
+		return target_pos
+	return global_position + to_target.normalized() * max_range
 
 
 func get_skill_remaining(slot: int) -> float:
@@ -392,6 +614,14 @@ func get_dash_max() -> float:
 	return DASH_COOLDOWN
 
 
+func get_swap_remaining() -> float:
+	return stance_swap_cd
+
+
+func get_swap_max() -> float:
+	return STANCE_SWAP_COOLDOWN
+
+
 func take_damage(amount: int) -> void:
 	health = maxi(0, health - amount)
 	health_changed.emit(health, max_health)
@@ -404,5 +634,12 @@ func take_damage(amount: int) -> void:
 		global_position = spawn_position
 		pending_skill = -1
 		aiming_active = false
+		swap_aiming = false
+		swap_velocity = Vector2.ZERO
+		swap_time_left = 0.0
+		_end_swap_phase()
+		if swap_aimer:
+			swap_aimer.stop_aiming()
+		get_tree().paused = false
 		health_changed.emit(health, max_health)
 		mana_changed.emit(mana, max_mana)

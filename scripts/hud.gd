@@ -10,6 +10,7 @@ var player: Node = null
 @onready var mp_label: Label = $Root/ManaBar/MPLabel
 @onready var stance_label: Label = $Root/StanceLabel
 @onready var dash_slot: Node = $Root/SkillBar/DashSlot
+@onready var swap_slot: Node = $Root/SkillBar/SwapSlot
 @onready var slots: Array = [
 	$Root/SkillBar/Slot1,
 	$Root/SkillBar/Slot2,
@@ -25,6 +26,7 @@ func _ready() -> void:
 		return
 
 	dash_slot.configure("Dash", "⇧", Color(0.7, 0.95, 1.0, 1.0), 0)
+	swap_slot.configure("Swap", "Q", Color(0.85, 0.55, 1.0, 1.0), 0)
 
 	if player.has_signal("health_changed"):
 		player.health_changed.connect(_on_health_changed)
@@ -42,6 +44,7 @@ func _process(_delta: float) -> void:
 	if player == null:
 		return
 	dash_slot.set_cooldown(player.get_dash_remaining(), player.get_dash_max())
+	swap_slot.set_cooldown(player.get_swap_remaining(), player.get_swap_max())
 	for i in range(slots.size()):
 		var slot: Node = slots[i]
 		slot.set_cooldown(player.get_skill_remaining(i), player.get_skill_max(i))
