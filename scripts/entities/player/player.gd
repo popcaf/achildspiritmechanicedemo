@@ -1,6 +1,6 @@
 extends CharacterBody2D
 
-const GRAVITY := 3000.0
+const GRAVITY := 2500.0
 const MOVE_SPEED := 650.0
 const JUMP_VELOCITY := -850.0
 const MAX_AIR_JUMPS := 1
@@ -184,6 +184,10 @@ func _physics_process(delta: float) -> void:
 		velocity.y = 0.0
 	else:
 		velocity.x = input_x * MOVE_SPEED
+		# Kill leftover upward momentum from a fire-dash (would otherwise launch
+		# the player into the sky for ~0.7s before gravity catches up).
+		if velocity.y < JUMP_VELOCITY:
+			velocity.y = 0.0
 		velocity.y += GRAVITY * delta
 		if is_on_floor():
 			air_jumps_left = MAX_AIR_JUMPS
