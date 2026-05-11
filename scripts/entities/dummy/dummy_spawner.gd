@@ -2,9 +2,11 @@ extends Node2D
 
 const DUMMY_SCENE := preload("res://scenes/entities/dummy/dummy.tscn")
 
-# Weakness values to randomize between when respawning. Defaults to fire+water
-# (1, 2) so every respawn is elemental. Add 0 for the chance of a neutral dummy.
-@export var weakness_pool: Array[int] = [1, 2]
+# Weakness values to randomize between when respawning. Defaults to fire/water/wind
+# (1, 2, 3) so every respawn is elemental. Add 0 for the chance of a neutral dummy.
+# Earth (4) intentionally excluded — earth attacks ignore weakness anyway, and there
+# is no element that earth resists.
+@export var weakness_pool: Array[int] = [1, 2, 3]
 
 var _spawn_points: Array[Marker2D] = []
 

@@ -5,7 +5,6 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/hud/hud.tscn" id="3"]
 [ext_resource type="Script" uid="uid://6tlrc5iit7ii" path="res://scripts/entities/hazard/hazard.gd" id="4"]
 [ext_resource type="Script" uid="uid://beqma65j3jxf" path="res://scripts/entities/dummy/dummy_spawner.gd" id="5"]
-[ext_resource type="PackedScene" path="res://scenes/ui/cast/cast_page.tscn" id="6"]
 
 [node name="TestMap" type="Node2D" unique_id=1374877108]
 
@@ -145,5 +144,3 @@ position = Vector2(950, 184)
 weakness = 2
 
 [node name="HUD" parent="." unique_id=1265886396 instance=ExtResource("3")]
-
-[node name="CastPage" parent="." unique_id=1878510507 instance=ExtResource("6")]

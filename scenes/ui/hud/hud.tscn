@@ -22,8 +22,8 @@ corner_radius_top_right = 2
 corner_radius_bottom_right = 2
 corner_radius_bottom_left = 2
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_MPFill"]
-bg_color = Color(0.3, 0.55, 1, 1)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_FlyFill"]
+bg_color = Color(0.6, 0.95, 0.7, 1)
 corner_radius_top_left = 2
 corner_radius_top_right = 2
 corner_radius_bottom_right = 2
@@ -75,39 +75,39 @@ text = "100 / 100"
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="MPCaption" type="Label" parent="Root" unique_id=211956211]
+[node name="FlyCaption" type="Label" parent="Root"]
 layout_mode = 0
 offset_left = 16.0
 offset_top = 54.0
 offset_right = 80.0
 offset_bottom = 70.0
-theme_override_colors/font_color = Color(0.55, 0.85, 1, 1)
+theme_override_colors/font_color = Color(0.6, 0.95, 0.7, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 3
 theme_override_font_sizes/font_size = 12
-text = "MP"
+text = "FLY"
 
-[node name="ManaBar" type="ProgressBar" parent="Root" unique_id=948629648]
+[node name="FlyBar" type="ProgressBar" parent="Root"]
 layout_mode = 0
 offset_left = 16.0
 offset_top = 72.0
 offset_right = 296.0
-offset_bottom = 96.0
+offset_bottom = 88.0
 mouse_filter = 2
 theme_override_styles/background = SubResource("StyleBoxFlat_BarBg")
-theme_override_styles/fill = SubResource("StyleBoxFlat_MPFill")
+theme_override_styles/fill = SubResource("StyleBoxFlat_FlyFill")
 value = 100.0
 show_percentage = false
 
-[node name="MPLabel" type="Label" parent="Root/ManaBar" unique_id=951409187]
+[node name="FlyLabel" type="Label" parent="Root/FlyBar"]
 layout_mode = 0
 anchor_right = 1.0
 anchor_bottom = 1.0
 theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 3
-theme_override_font_sizes/font_size = 13
-text = "100 / 100"
+theme_override_font_sizes/font_size = 12
+text = "2.0 / 2.0"
 horizontal_alignment = 1
 vertical_alignment = 1
 
@@ -115,15 +115,15 @@ vertical_alignment = 1
 layout_mode = 0
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -220.0
+offset_left = -260.0
 offset_top = 12.0
-offset_right = 220.0
+offset_right = 260.0
 offset_bottom = 36.0
-theme_override_colors/font_color = Color(0.45, 0.78, 1, 1)
+theme_override_colors/font_color = Color(1, 0.55, 0.25, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 3
 theme_override_font_sizes/font_size = 16
-text = "WATER STANCE   ·   Q to swap"
+text = "FIRE STANCE   ·   tap key for skill, double-tap to swap"
 horizontal_alignment = 1
 
 [node name="SkillBar" type="HBoxContainer" parent="Root" unique_id=1444007876]
@@ -133,31 +133,25 @@ anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -236.0
+offset_left = -160.0
 offset_top = -117.0
-offset_right = 236.0
+offset_right = 160.0
 offset_bottom = -45.0
 grow_horizontal = 2
 grow_vertical = 0
 mouse_filter = 2
 theme_override_constants/separation = 8
 
-[node name="DashSlot" parent="Root/SkillBar" unique_id=1439549497 instance=ExtResource("2")]
+[node name="FireSlot" parent="Root/SkillBar" instance=ExtResource("2")]
 layout_mode = 2
 
-[node name="SwapSlot" parent="Root/SkillBar" unique_id=667209615 instance=ExtResource("2")]
+[node name="WaterSlot" parent="Root/SkillBar" instance=ExtResource("2")]
 layout_mode = 2
 
-[node name="Slot1" parent="Root/SkillBar" unique_id=1232833120 instance=ExtResource("2")]
+[node name="EarthSlot" parent="Root/SkillBar" instance=ExtResource("2")]
 layout_mode = 2
 
-[node name="Slot2" parent="Root/SkillBar" unique_id=1363362969 instance=ExtResource("2")]
-layout_mode = 2
-
-[node name="Slot3" parent="Root/SkillBar" unique_id=1490095283 instance=ExtResource("2")]
-layout_mode = 2
-
-[node name="Slot4" parent="Root/SkillBar" unique_id=555465049 instance=ExtResource("2")]
+[node name="WindSlot" parent="Root/SkillBar" instance=ExtResource("2")]
 layout_mode = 2
 
 [node name="Hint" type="Label" parent="Root" unique_id=1067033003]
@@ -166,10 +160,10 @@ anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 16.0
 offset_top = -28.0
-offset_right = 880.0
+offset_right = 920.0
 offset_bottom = -8.0
 theme_override_colors/font_color = Color(0.85, 0.88, 0.95, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
 theme_override_constants/outline_size = 3
 theme_override_font_sizes/font_size = 13
-text = "AD: move   Space: jump   ⇧ dash   LMB: attack/cast   RMB: cancel   Q (hold): swap wheel   Release Q: switch   Click: swap-skill aim   1-4: skills"
+text = "AD: move   Space: jump (hold in wind: fly)   LMB: attack   RMB (hold): aim, LMB: ranged   Q: fire-dash aim, LMB commit   Q/E/F/⇧ ×2: swap stance"

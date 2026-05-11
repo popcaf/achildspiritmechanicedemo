@@ -6,16 +6,15 @@ var player: Node = null
 
 @onready var hp_bar: ProgressBar = $Root/HealthBar
 @onready var hp_label: Label = $Root/HealthBar/HPLabel
-@onready var mp_bar: ProgressBar = $Root/ManaBar
-@onready var mp_label: Label = $Root/ManaBar/MPLabel
+@onready var fly_bar: ProgressBar = $Root/FlyBar
+@onready var fly_label: Label = $Root/FlyBar/FlyLabel
+@onready var fly_caption: Label = $Root/FlyCaption
 @onready var stance_label: Label = $Root/StanceLabel
-@onready var dash_slot: Node = $Root/SkillBar/DashSlot
-@onready var swap_slot: Node = $Root/SkillBar/SwapSlot
 @onready var slots: Array = [
-	$Root/SkillBar/Slot1,
-	$Root/SkillBar/Slot2,
-	$Root/SkillBar/Slot3,
-	$Root/SkillBar/Slot4,
+	$Root/SkillBar/FireSlot,
+	$Root/SkillBar/WaterSlot,
+	$Root/SkillBar/EarthSlot,
+	$Root/SkillBar/WindSlot,
 ]
 
 
@@ -25,30 +24,27 @@ func _ready() -> void:
 		push_warning("HUD: player not found at path %s" % player_path)
 		return
 
-	dash_slot.configure("Dash", "⇧", Color(0.7, 0.95, 1.0, 1.0), 0)
-	swap_slot.configure("Swap", "Q", Color(0.85, 0.55, 1.0, 1.0), 0)
+	for i in range(slots.size()):
+		var info: Dictionary = player.get_stance_info(i)
+		slots[i].configure(info.skill_name, info.key, info.color)
 
 	if player.has_signal("health_changed"):
 		player.health_changed.connect(_on_health_changed)
-	if player.has_signal("mana_changed"):
-		player.mana_changed.connect(_on_mana_changed)
 	if player.has_signal("stance_changed"):
 		player.stance_changed.connect(_on_stance_changed)
+	if player.has_signal("fly_gauge_changed"):
+		player.fly_gauge_changed.connect(_on_fly_changed)
 
 	_on_stance_changed(player.current_stance)
 	_on_health_changed(player.health, player.max_health)
-	_on_mana_changed(player.mana, player.max_mana)
+	_on_fly_changed(player.get_fly_remaining(), player.get_fly_max())
 
 
 func _process(_delta: float) -> void:
 	if player == null:
 		return
-	dash_slot.set_cooldown(player.get_dash_remaining(), player.get_dash_max())
-	swap_slot.set_cooldown(player.get_swap_remaining(), player.get_swap_max())
 	for i in range(slots.size()):
-		var slot: Node = slots[i]
-		slot.set_cooldown(player.get_skill_remaining(i), player.get_skill_max(i))
-		slot.set_affordable(player.can_afford_skill(i))
+		slots[i].set_cooldown(player.get_skill_remaining(i), player.get_skill_max(i))
 
 
 func _on_health_changed(current: int, max_value: int) -> void:
@@ -57,18 +53,20 @@ func _on_health_changed(current: int, max_value: int) -> void:
 	hp_label.text = "%d / %d" % [current, max_value]
 
 
-func _on_mana_changed(current: float, max_value: int) -> void:
-	mp_bar.max_value = float(max_value)
-	mp_bar.value = current
-	mp_label.text = "%d / %d" % [int(current), max_value]
-
-
 func _on_stance_changed(stance: int) -> void:
-	var data: Dictionary = player.STANCES[stance]
-	var name_str: String = data.name
-	stance_label.text = "%s STANCE   ·   hold Q for swap menu" % name_str.to_upper()
-	stance_label.modulate = data.color
-	var skills: Array = data.skills
-	for i in range(slots.size()):
-		var s: Dictionary = skills[i]
-		slots[i].configure(s.name, str(i + 1), s.color, s.mana)
+	var info: Dictionary = player.get_stance_info(stance)
+	var name_str: String = info.name
+	stance_label.text = "%s STANCE   ·   tap key for skill, double-tap to swap" % name_str.to_upper()
+	stance_label.modulate = info.color
+	# Fly gauge is only usable in wind stance — dim when irrelevant.
+	var wind_active: bool = stance == 3
+	var alpha: float = 1.0 if wind_active else 0.4
+	fly_bar.modulate.a = alpha
+	fly_label.modulate.a = alpha
+	fly_caption.modulate.a = alpha
+
+
+func _on_fly_changed(current: float, max_value: float) -> void:
+	fly_bar.max_value = max_value
+	fly_bar.value = current
+	fly_label.text = "%.1f / %.1f" % [current, max_value]

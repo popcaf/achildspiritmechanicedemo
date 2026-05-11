@@ -8,7 +8,7 @@ const DAMAGE_NUMBER := preload("res://scenes/effects/damage_number.tscn")
 const Element := preload("res://scripts/core/element.gd")
 
 @export var max_health: int = 100
-@export_enum("None", "Fire", "Water") var weakness: int = 0
+@export_enum("None", "Fire", "Water", "Wind") var weakness: int = 0
 
 var health: int
 
@@ -71,6 +71,9 @@ func take_damage(amount: int, element: int = Element.NEUTRAL, from_pos: Vector2 
 
 
 func _multiplier_for(element: int) -> float:
+	# Earth attacks ignore the weakness/resist system entirely — always flat damage.
+	if element == Element.EARTH:
+		return 1.0
 	if weakness == Element.NEUTRAL or element == Element.NEUTRAL:
 		return 1.0
 	if weakness == element:
@@ -89,6 +92,11 @@ func _apply_weakness_visuals() -> void:
 			body_visual.color = Color(1.0, 0.5, 0.45, 1.0)
 			weakness_label.text = "WEAK: WATER"
 			weakness_label.modulate = Color(0.45, 0.78, 1.0, 1.0)
+			weakness_label.visible = true
+		Element.WIND:
+			body_visual.color = Color(0.95, 0.7, 0.45, 1.0)
+			weakness_label.text = "WEAK: WIND"
+			weakness_label.modulate = Color(0.6, 0.95, 0.7, 1.0)
 			weakness_label.visible = true
 		_:
 			body_visual.color = Color(0.85, 0.85, 0.85, 1.0)
