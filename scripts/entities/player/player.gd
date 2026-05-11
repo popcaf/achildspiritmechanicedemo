@@ -30,10 +30,16 @@ const WATER_KNOCK_LENGTH := 180.0
 const WATER_KNOCK_WIDTH := 140.0
 const WATER_KNOCK_FORCE := 600.0
 
-# Earth shield: 1.5s of full invulnerability.
-const EARTH_SHIELD_DURATION := 1.5
-const EARTH_SHIELD_COOLDOWN := 6.0
-const EARTH_PASSIVE_REDUCTION := 0.5  # take 50% damage in earth stance.
+# Earth block: hold F to soak hits at 35% of full damage (65% reduction). A press
+# timed just before an incoming strike (PARRY_GRACE window) becomes a PARRY — full
+# negation + the attacker is staggered. Release to drop the block; a quick second
+# press of F (within DOUBLE_TAP_WINDOW) swaps stance instead.
+const EARTH_PASSIVE_REDUCTION := 0.5    # take 50% damage in earth stance (when not blocking).
+const EARTH_BLOCK_REDUCTION := 0.65     # block reduces damage by 65% → take 35%.
+const PARRY_GRACE := 0.30               # F press counts as parry if taken in this window before a hit.
+const WINK_LEAD := 0.40                 # start blink-warning when an attack is this close.
+const WINK_FREQUENCY := 9.0             # blink rate (Hz) of the warning pulse.
+const PARRY_STAGGER_SECONDS := 1.0      # how long a parried attacker is stunned.
 
 # Wind dash: pure movement. No damage.
 const WIND_DASH_TIME := 0.18
@@ -82,7 +88,7 @@ const WATER_POUR_SPREAD := 0.12     # +/- radians of random spray spread.
 const STANCE_INFO := [
 	{"name": "Fire",  "color": Color(1.0, 0.55, 0.25, 1.0), "key": "Q",   "skill_name": "Dash Strike", "skill_cd": FIRE_DASH_COOLDOWN},
 	{"name": "Water", "color": Color(0.45, 0.78, 1.0, 1.0), "key": "E",   "skill_name": "Surge Push", "skill_cd": WATER_KNOCK_COOLDOWN},
-	{"name": "Earth", "color": Color(0.8, 0.6, 0.3, 1.0),   "key": "F",   "skill_name": "Bulwark",     "skill_cd": EARTH_SHIELD_COOLDOWN},
+	{"name": "Earth", "color": Color(0.8, 0.6, 0.3, 1.0),   "key": "F",   "skill_name": "Bulwark",     "skill_cd": 0.0},
 	{"name": "Wind",  "color": Color(0.6, 0.95, 0.7, 1.0),  "key": "⇧", "skill_name": "Gale Dash",   "skill_cd": WIND_DASH_COOLDOWN},
 ]
 
@@ -92,7 +98,7 @@ const StancePlayer := preload("res://scripts/entities/player/stance_player.gd")
 const Element := preload("res://scripts/core/element.gd")
 
 @export var max_health: int = 100
-@export var attack_damage: int = 10
+@export var attack_damage: int = 15
 @export var spawn_position: Vector2 = Vector2(-500, 100)
 
 var health: int
@@ -118,8 +124,14 @@ var fire_dash_hit: Dictionary = {}  # bodies already damaged this dash.
 # Wind dash state (no damage).
 var wind_dash_time_left: float = 0.0
 
-# Earth shield (full invulnerability while > 0).
-var earth_shield_time_left: float = 0.0
+# Earth block (65% reduction while held).
+var earth_blocking: bool = false
+var earth_block_dome: Polygon2D = null
+# Time since last F press — used by take_damage() to detect a parry. INF = consumed/none.
+var parry_press_time: float = INF
+# List of {attacker, time_left} — pending strikes telegraphed by enemies.
+var incoming_attacks: Array = []
+var _wink_phase: float = 0.0
 
 # Wind fly gauge: drains while flying, regens otherwise.
 var fly_gauge: float = WIND_FLY_MAX
@@ -157,13 +169,43 @@ func _ready() -> void:
 	fly_gauge_changed.emit(fly_gauge, WIND_FLY_MAX)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if aim_reticle:
 		if aim_mode_active and _stance_can_aim(current_stance):
 			aim_reticle.visible = true
 			aim_reticle.global_position = get_global_mouse_position()
 		else:
 			aim_reticle.visible = false
+	_update_incoming_attacks(delta)
+	_update_wink(delta)
+
+
+func _update_incoming_attacks(delta: float) -> void:
+	if incoming_attacks.is_empty():
+		return
+	var still: Array = []
+	for atk in incoming_attacks:
+		atk.time_left -= delta
+		if atk.time_left > 0.0 and is_instance_valid(atk.attacker):
+			still.append(atk)
+	incoming_attacks = still
+
+
+func _update_wink(delta: float) -> void:
+	# Find the soonest incoming strike; if it's within WINK_LEAD, pulse the
+	# active stance so the player has a clear visual cue to time their parry.
+	var soonest: float = INF
+	for atk in incoming_attacks:
+		soonest = minf(soonest, atk.time_left)
+	if active_stance == null:
+		return
+	if soonest <= WINK_LEAD:
+		_wink_phase += delta * WINK_FREQUENCY * TAU
+		var t: float = 0.5 + 0.5 * sin(_wink_phase)
+		active_stance.modulate = Color.WHITE.lerp(Color(1.8, 1.6, 0.4, 1.0), t)
+	elif active_stance.modulate != Color.WHITE:
+		_wink_phase = 0.0
+		active_stance.modulate = Color.WHITE
 
 
 func _physics_process(delta: float) -> void:
@@ -232,7 +274,7 @@ func _physics_process(delta: float) -> void:
 	# Stance keys: 1-tap = use that stance's signature skill, 2-tap (within window) = swap.
 	_handle_stance_key("stance_fire", STANCE_FIRE)
 	_handle_stance_key("stance_water", STANCE_WATER)
-	_handle_stance_key("stance_earth", STANCE_EARTH)
+	_handle_earth_key()
 	_handle_stance_key("stance_wind", STANCE_WIND)
 
 
@@ -266,7 +308,8 @@ func _tick_timers(delta: float) -> void:
 	attack_cd = maxf(0.0, attack_cd - delta)
 	fire_dash_time_left = maxf(0.0, fire_dash_time_left - delta)
 	wind_dash_time_left = maxf(0.0, wind_dash_time_left - delta)
-	earth_shield_time_left = maxf(0.0, earth_shield_time_left - delta)
+	if parry_press_time != INF:
+		parry_press_time += delta
 	for i in range(skill_cd.size()):
 		var prev: float = skill_cd[i]
 		var next: float = maxf(0.0, prev - delta)
@@ -308,6 +351,33 @@ func _update_animation_state() -> void:
 		active_stance.play_state("idle")
 
 
+func _handle_earth_key() -> void:
+	# F has its own rules: hold = block (35% damage taken). A press timed within
+	# PARRY_GRACE seconds before a hit becomes a PARRY (no damage + stagger). A
+	# quick second press within DOUBLE_TAP_WINDOW swaps to earth stance instead.
+	if Input.is_action_just_pressed("stance_earth"):
+		# Always arm the parry window on press — take_damage() consumes it.
+		parry_press_time = 0.0
+		if last_tap_time[STANCE_EARTH] <= DOUBLE_TAP_WINDOW:
+			_end_earth_block()
+			_swap_to_stance(STANCE_EARTH)
+			last_tap_time[STANCE_EARTH] = INF
+		else:
+			# Cancel a fire-aim if any (consistent with the other stance keys).
+			if fire_aim_active:
+				_close_fire_aim()
+			_start_earth_block()
+			last_tap_time[STANCE_EARTH] = 0.0
+	if Input.is_action_just_released("stance_earth"):
+		_end_earth_block()
+
+
+# Called by enemies when they begin a telegraphed attack windup. The player
+# uses this to drive the wink warning and resolve parries.
+func notify_incoming_attack(attacker: Node, time_to_strike: float) -> void:
+	incoming_attacks.append({"attacker": attacker, "time_left": time_to_strike})
+
+
 func _handle_stance_key(action: String, stance: int) -> void:
 	if not Input.is_action_just_pressed(action):
 		return
@@ -342,7 +412,6 @@ func _use_stance_skill(stance: int) -> void:
 	skill_cd_changed.emit(stance, skill_cd[stance], _get_skill_max(stance))
 	match stance:
 		STANCE_WATER: _do_water_knockback()
-		STANCE_EARTH: _do_earth_shield()
 		STANCE_WIND:  _do_wind_dash()
 
 
@@ -491,23 +560,33 @@ func _do_water_knockback() -> void:
 	t.finished.connect(area.queue_free, CONNECT_ONE_SHOT)
 
 
-func _do_earth_shield() -> void:
-	earth_shield_time_left = EARTH_SHIELD_DURATION
-	if active_stance:
-		# Visual cue: a dome flash around the player (independent of stance change).
-		var color: Color = STANCE_INFO[STANCE_EARTH].color
-		var dome := Polygon2D.new()
-		dome.color = Color(color.r, color.g, color.b, 0.35)
-		var pts := PackedVector2Array()
-		var n := 32
-		var radius := 60.0
-		for i in range(n):
-			var a: float = float(i) * TAU / float(n)
-			pts.append(Vector2(cos(a), sin(a)) * radius)
-		dome.polygon = pts
-		add_child(dome)
-		var t := create_tween()
-		t.tween_property(dome, "modulate:a", 0.0, EARTH_SHIELD_DURATION)
+func _start_earth_block() -> void:
+	if earth_blocking:
+		return
+	earth_blocking = true
+	# Persistent dome visual that follows the player until released.
+	var color: Color = STANCE_INFO[STANCE_EARTH].color
+	earth_block_dome = Polygon2D.new()
+	earth_block_dome.color = Color(color.r, color.g, color.b, 0.35)
+	var pts := PackedVector2Array()
+	var n := 32
+	var radius := 60.0
+	for i in range(n):
+		var a: float = float(i) * TAU / float(n)
+		pts.append(Vector2(cos(a), sin(a)) * radius)
+	earth_block_dome.polygon = pts
+	add_child(earth_block_dome)
+
+
+func _end_earth_block() -> void:
+	if not earth_blocking:
+		return
+	earth_blocking = false
+	if earth_block_dome and is_instance_valid(earth_block_dome):
+		var dome: Polygon2D = earth_block_dome
+		earth_block_dome = null
+		var t := dome.create_tween()
+		t.tween_property(dome, "modulate:a", 0.0, 0.15)
 		t.finished.connect(dome.queue_free, CONNECT_ONE_SHOT)
 
 
@@ -682,15 +761,58 @@ func get_fly_max() -> float:
 	return WIND_FLY_MAX
 
 
+func _do_parry_visual() -> void:
+	# A bright yellow ring that briefly flashes around the player.
+	var ring := Polygon2D.new()
+	var ring_color := Color(1.0, 0.95, 0.4, 0.85)
+	ring.color = ring_color
+	var pts := PackedVector2Array()
+	var n := 32
+	var radius := 70.0
+	for i in range(n):
+		var a: float = float(i) * TAU / float(n)
+		pts.append(Vector2(cos(a), sin(a)) * radius)
+	ring.polygon = pts
+	add_child(ring)
+	var t := ring.create_tween()
+	t.set_parallel(true)
+	t.tween_property(ring, "scale", Vector2(1.6, 1.6), 0.30) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	t.tween_property(ring, "modulate:a", 0.0, 0.35)
+	t.finished.connect(ring.queue_free, CONNECT_ONE_SHOT)
+
+
+func _resolve_incoming(attacker: Node) -> void:
+	# Drop any pending strike from this attacker since they were parried.
+	if attacker == null:
+		return
+	var still: Array = []
+	for atk in incoming_attacks:
+		if atk.attacker != attacker:
+			still.append(atk)
+	incoming_attacks = still
+
+
 # -------- Damage --------
 
-func take_damage(amount: int) -> void:
-	if earth_shield_time_left > 0.0:
-		# Full block during shield.
+func take_damage(amount: int, attacker: Node = null) -> void:
+	# PARRY: F was pressed within the grace window before this hit lands.
+	if parry_press_time <= PARRY_GRACE:
+		parry_press_time = INF  # consume so a single press only parries one hit.
+		_do_parry_visual()
+		_end_earth_block()
+		_resolve_incoming(attacker)
+		if attacker and attacker.has_method("on_parried"):
+			attacker.on_parried()
 		return
-	var dmg: int = amount
+
+	var working: float = float(amount)
+	if earth_blocking:
+		working *= (1.0 - EARTH_BLOCK_REDUCTION)
 	if current_stance == STANCE_EARTH:
-		dmg = maxi(0, roundi(float(amount) * (1.0 - EARTH_PASSIVE_REDUCTION)))
+		working *= (1.0 - EARTH_PASSIVE_REDUCTION)
+
+	var dmg: int = maxi(0, roundi(working))
 	health = maxi(0, health - dmg)
 	health_changed.emit(health, max_health)
 	if active_stance:
@@ -705,12 +827,12 @@ func _respawn() -> void:
 	global_position = spawn_position
 	fire_dash_time_left = 0.0
 	wind_dash_time_left = 0.0
-	earth_shield_time_left = 0.0
 	fly_gauge = WIND_FLY_MAX
 	is_flying = false
 	fly_gauge_changed.emit(fly_gauge, WIND_FLY_MAX)
 	if fire_aim_active:
 		_close_fire_aim()
+	_end_earth_block()
 	for i in range(skill_cd.size()):
 		skill_cd[i] = 0.0
 		skill_cd_changed.emit(i, 0.0, _get_skill_max(i))

@@ -2,7 +2,7 @@
 
 [ext_resource type="PackedScene" uid="uid://b3n7lf4voo14f" path="res://scenes/entities/player/player.tscn" id="1"]
 [ext_resource type="PackedScene" uid="uid://b8jvyl5sn0ju8" path="res://scenes/entities/dummy/dummy.tscn" id="2"]
-[ext_resource type="PackedScene" path="res://scenes/ui/hud/hud.tscn" id="3"]
+[ext_resource type="PackedScene" uid="uid://cexft2jjjgpc6" path="res://scenes/ui/hud/hud.tscn" id="3"]
 [ext_resource type="Script" uid="uid://6tlrc5iit7ii" path="res://scripts/entities/hazard/hazard.gd" id="4"]
 [ext_resource type="Script" uid="uid://beqma65j3jxf" path="res://scripts/entities/dummy/dummy_spawner.gd" id="5"]
 
@@ -143,20 +143,19 @@ weakness = 1
 position = Vector2(950, 184)
 weakness = 2
 
-[node name="Dummy5" parent="DummySpawner" instance=ExtResource("2")]
+[node name="Dummy5" parent="DummySpawner" unique_id=416266531 instance=ExtResource("2")]
 position = Vector2(150, 184)
 weakness = 3
 
-[node name="Dummy6" parent="DummySpawner" instance=ExtResource("2")]
+[node name="Dummy6" parent="DummySpawner" unique_id=63373486 instance=ExtResource("2")]
 position = Vector2(500, 184)
 weakness = 1
 
-[node name="Dummy7" parent="DummySpawner" instance=ExtResource("2")]
+[node name="Dummy7" parent="DummySpawner" unique_id=1976535067 instance=ExtResource("2")]
 position = Vector2(-200, 184)
 weakness = 3
 
-[node name="Dummy8" parent="DummySpawner" instance=ExtResource("2")]
+[node name="Dummy8" parent="DummySpawner" unique_id=1038249854 instance=ExtResource("2")]
 position = Vector2(800, 184)
-weakness = 0
 
 [node name="HUD" parent="." unique_id=1265886396 instance=ExtResource("3")]
