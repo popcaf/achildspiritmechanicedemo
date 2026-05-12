@@ -1,0 +1,51 @@
+[gd_scene format=3 uid="uid://envtree0001"]
+
+[ext_resource type="Script" path="res://scripts/entities/environment/water_tree.gd" id="1"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_1"]
+size = Vector2(110, 12)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_2"]
+size = Vector2(150, 220)
+
+[node name="WaterTree" type="StaticBody2D"]
+collision_layer = 33
+collision_mask = 1
+script = ExtResource("1")
+
+[node name="Visual" type="Node2D" parent="."]
+
+[node name="SeedDot" type="Polygon2D" parent="Visual"]
+color = Color(0.5, 0.35, 0.2, 1)
+polygon = PackedVector2Array(-4, -2, 4, -2, 6, 0, -6, 0)
+
+[node name="Trunk" type="Polygon2D" parent="Visual"]
+position = Vector2(0, 0)
+color = Color(0.45, 0.3, 0.18, 1)
+polygon = PackedVector2Array(-10, 0, 10, 0, 10, -110, -10, -110)
+
+[node name="Canopy" type="Polygon2D" parent="Visual"]
+position = Vector2(0, -130)
+color = Color(0.3, 0.6, 0.3, 1)
+polygon = PackedVector2Array(-40, 20, -42, -8, -32, -30, -10, -42, 14, -42, 34, -30, 42, -10, 40, 16, 20, 28, -16, 30)
+
+[node name="Plank" type="Polygon2D" parent="Visual"]
+position = Vector2(0, -110)
+visible = false
+color = Color(0.55, 0.4, 0.22, 1)
+polygon = PackedVector2Array(-55, -5, 55, -5, 55, 5, -55, 5)
+
+[node name="PlatformShape" type="CollisionShape2D" parent="."]
+position = Vector2(0, -110)
+shape = SubResource("RectangleShape2D_1")
+disabled = true
+one_way_collision = true
+
+[node name="WaterCatcher" type="Area2D" parent="."]
+collision_layer = 1
+collision_mask = 0
+
+[node name="CatcherShape" type="CollisionShape2D" parent="WaterCatcher"]
+position = Vector2(0, -110)
+shape = SubResource("RectangleShape2D_2")
+

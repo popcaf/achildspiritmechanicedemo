@@ -2,77 +2,264 @@
 
 [ext_resource type="PackedScene" uid="uid://b3n7lf4voo14f" path="res://scenes/entities/player/player.tscn" id="1"]
 [ext_resource type="PackedScene" uid="uid://b8jvyl5sn0ju8" path="res://scenes/entities/dummy/dummy.tscn" id="2"]
-[ext_resource type="PackedScene" path="res://scenes/ui/hud/hud.tscn" id="3"]
+[ext_resource type="PackedScene" uid="uid://cexft2jjjgpc6" path="res://scenes/ui/hud/hud.tscn" id="3"]
 [ext_resource type="Script" uid="uid://6tlrc5iit7ii" path="res://scripts/entities/hazard/hazard.gd" id="4"]
 [ext_resource type="Script" uid="uid://beqma65j3jxf" path="res://scripts/entities/dummy/dummy_spawner.gd" id="5"]
+[ext_resource type="PackedScene" uid="uid://lw3ifbegchy3" path="res://scenes/entities/parry_dummy/parry_dummy.tscn" id="6"]
+[ext_resource type="PackedScene" uid="uid://envvine0001" path="res://scenes/entities/environment/vine.tscn" id="7"]
+[ext_resource type="PackedScene" path="res://scenes/entities/environment/fire_obstacle.tscn" id="8"]
+[ext_resource type="PackedScene" path="res://scenes/entities/environment/water_tree.tscn" id="9"]
+[ext_resource type="PackedScene" path="res://scenes/entities/environment/earth_rock.tscn" id="10"]
+[ext_resource type="PackedScene" path="res://scenes/entities/environment/push_rock.tscn" id="11"]
 
 [node name="TestMap" type="Node2D" unique_id=1374877108]
 
 [node name="Background" type="Polygon2D" parent="." unique_id=791275171]
 color = Color(0.06, 0.06, 0.09, 1)
-polygon = PackedVector2Array(-2000, -2000, 2500, -2000, 2500, 2000, -2000, 2000)
+polygon = PackedVector2Array(-2500, -2000, 6500, -2000, 6500, 2000, -2500, 2000)
 
 [node name="Ground" type="StaticBody2D" parent="." unique_id=2119434160]
 
 [node name="Visual" type="Polygon2D" parent="Ground" unique_id=211209510]
 color = Color(0.18, 0.2, 0.26, 1)
-polygon = PackedVector2Array(-700, 200, 1200, 200, 1200, 700, -700, 700)
+polygon = PackedVector2Array(-1200, 200, 4800, 200, 4800, 700, -1200, 700)
 
 [node name="Shape" type="CollisionPolygon2D" parent="Ground" unique_id=990156188]
-polygon = PackedVector2Array(-700, 200, 1200, 200, 1200, 700, -700, 700)
+polygon = PackedVector2Array(-1200, 200, 4800, 200, 4800, 700, -1200, 700)
 
 [node name="Outline" type="Line2D" parent="Ground" unique_id=1311183497]
-points = PackedVector2Array(-700, 200, 1200, 200)
+points = PackedVector2Array(-1200, 200, 4800, 200)
 width = 3.0
 default_color = Color(0.55, 0.6, 0.7, 1)
 
-[node name="PlatformA" type="StaticBody2D" parent="." unique_id=464435030]
-position = Vector2(-300, 80)
+[node name="FireZone" type="Polygon2D" parent="." unique_id=1424029511]
+color = Color(1, 0.55, 0.25, 0.13)
+polygon = PackedVector2Array(-1200, 200, 0, 200, 0, 700, -1200, 700)
 
-[node name="Visual" type="Polygon2D" parent="PlatformA" unique_id=518786063]
+[node name="WaterZone" type="Polygon2D" parent="." unique_id=393592029]
+color = Color(0.45, 0.78, 1, 0.13)
+polygon = PackedVector2Array(0, 200, 1200, 200, 1200, 700, 0, 700)
+
+[node name="WindZone" type="Polygon2D" parent="." unique_id=504891330]
+color = Color(0.6, 0.95, 0.7, 0.13)
+polygon = PackedVector2Array(1200, 200, 2400, 200, 2400, 700, 1200, 700)
+
+[node name="EarthZone" type="Polygon2D" parent="." unique_id=1121314940]
+color = Color(0.8, 0.6, 0.3, 0.16)
+polygon = PackedVector2Array(2400, 200, 3600, 200, 3600, 700, 2400, 700)
+
+[node name="BossZone" type="Polygon2D" parent="." unique_id=1415940134]
+color = Color(0.85, 0.3, 0.35, 0.18)
+polygon = PackedVector2Array(3600, 200, 4800, 200, 4800, 700, 3600, 700)
+
+[node name="Sep1" type="Line2D" parent="." unique_id=1921017520]
+points = PackedVector2Array(0, 80, 0, 200)
+width = 2.0
+default_color = Color(0.55, 0.6, 0.7, 0.6)
+
+[node name="Sep2" type="Line2D" parent="." unique_id=1010164840]
+points = PackedVector2Array(1200, 80, 1200, 200)
+width = 2.0
+default_color = Color(0.55, 0.6, 0.7, 0.6)
+
+[node name="Sep3" type="Line2D" parent="." unique_id=1424792604]
+points = PackedVector2Array(2400, 80, 2400, 200)
+width = 2.0
+default_color = Color(0.55, 0.6, 0.7, 0.6)
+
+[node name="Sep4" type="Line2D" parent="." unique_id=34988755]
+points = PackedVector2Array(3600, 80, 3600, 200)
+width = 2.0
+default_color = Color(0.55, 0.6, 0.7, 0.6)
+
+[node name="FireLabel" type="Label" parent="." unique_id=1431029007]
+offset_left = -800.0
+offset_top = -120.0
+offset_right = -400.0
+offset_bottom = -90.0
+theme_override_colors/font_color = Color(1, 0.55, 0.25, 1)
+theme_override_font_sizes/font_size = 22
+text = "FIRE PRACTICE"
+horizontal_alignment = 1
+
+[node name="WaterLabel" type="Label" parent="." unique_id=154429384]
+offset_left = 400.0
+offset_top = -120.0
+offset_right = 800.0
+offset_bottom = -90.0
+theme_override_colors/font_color = Color(0.45, 0.78, 1, 1)
+theme_override_font_sizes/font_size = 22
+text = "WATER PRACTICE"
+horizontal_alignment = 1
+
+[node name="WindLabel" type="Label" parent="." unique_id=1746705072]
+offset_left = 1600.0
+offset_top = -120.0
+offset_right = 2000.0
+offset_bottom = -90.0
+theme_override_colors/font_color = Color(0.6, 0.95, 0.7, 1)
+theme_override_font_sizes/font_size = 22
+text = "WIND PRACTICE"
+horizontal_alignment = 1
+
+[node name="EarthLabel" type="Label" parent="." unique_id=1520268946]
+offset_left = 2800.0
+offset_top = -120.0
+offset_right = 3200.0
+offset_bottom = -90.0
+theme_override_colors/font_color = Color(0.8, 0.6, 0.3, 1)
+theme_override_font_sizes/font_size = 22
+text = "EARTH PRACTICE"
+horizontal_alignment = 1
+
+[node name="EarthSubLabel" type="Label" parent="." unique_id=543165513]
+offset_left = 2800.0
+offset_top = -90.0
+offset_right = 3200.0
+offset_bottom = -70.0
+theme_override_colors/font_color = Color(0.8, 0.6, 0.3, 0.85)
+theme_override_font_sizes/font_size = 14
+text = "Hold F to block · tap F just before a strike to parry"
+horizontal_alignment = 1
+
+[node name="BossLabel" type="Label" parent="." unique_id=313826669]
+offset_left = 4000.0
+offset_top = -120.0
+offset_right = 4400.0
+offset_bottom = -90.0
+theme_override_colors/font_color = Color(0.85, 0.3, 0.35, 1)
+theme_override_font_sizes/font_size = 24
+text = "BOSS AREA (WIP)"
+horizontal_alignment = 1
+
+[node name="FirePlatformA" type="StaticBody2D" parent="." unique_id=464435030]
+position = Vector2(-900, 60)
+
+[node name="Visual" type="Polygon2D" parent="FirePlatformA" unique_id=518786063]
 color = Color(0.22, 0.24, 0.32, 1)
-polygon = PackedVector2Array(-100, -10, 100, -10, 100, 10, -100, 10)
+polygon = PackedVector2Array(-120, -10, 120, -10, 120, 10, -120, 10)
 
-[node name="Shape" type="CollisionPolygon2D" parent="PlatformA" unique_id=2140762043]
-polygon = PackedVector2Array(-100, -10, 100, -10, 100, 10, -100, 10)
+[node name="Shape" type="CollisionPolygon2D" parent="FirePlatformA" unique_id=2140762043]
+polygon = PackedVector2Array(-120, -10, 120, -10, 120, 10, -120, 10)
 
-[node name="Outline" type="Line2D" parent="PlatformA" unique_id=1954330834]
-points = PackedVector2Array(-100, -10, 100, -10)
+[node name="Outline" type="Line2D" parent="FirePlatformA" unique_id=1954330834]
+points = PackedVector2Array(-120, -10, 120, -10)
 width = 2.0
 default_color = Color(0.55, 0.6, 0.7, 1)
 
-[node name="PlatformB" type="StaticBody2D" parent="." unique_id=640068077]
-position = Vector2(280, 30)
+[node name="FirePlatformB" type="StaticBody2D" parent="." unique_id=54771725]
+position = Vector2(-300, -30)
 
-[node name="Visual" type="Polygon2D" parent="PlatformB" unique_id=886496710]
+[node name="Visual" type="Polygon2D" parent="FirePlatformB" unique_id=601151418]
 color = Color(0.22, 0.24, 0.32, 1)
-polygon = PackedVector2Array(-125, -10, 125, -10, 125, 10, -125, 10)
+polygon = PackedVector2Array(-110, -10, 110, -10, 110, 10, -110, 10)
 
-[node name="Shape" type="CollisionPolygon2D" parent="PlatformB" unique_id=260898846]
-polygon = PackedVector2Array(-125, -10, 125, -10, 125, 10, -125, 10)
+[node name="Shape" type="CollisionPolygon2D" parent="FirePlatformB" unique_id=66363096]
+polygon = PackedVector2Array(-110, -10, 110, -10, 110, 10, -110, 10)
 
-[node name="Outline" type="Line2D" parent="PlatformB" unique_id=654226402]
-points = PackedVector2Array(-125, -10, 125, -10)
+[node name="Outline" type="Line2D" parent="FirePlatformB" unique_id=25797407]
+points = PackedVector2Array(-110, -10, 110, -10)
 width = 2.0
 default_color = Color(0.55, 0.6, 0.7, 1)
 
-[node name="PlatformC" type="StaticBody2D" parent="." unique_id=1079461657]
-position = Vector2(700, -100)
+[node name="WaterPlatformA" type="StaticBody2D" parent="." unique_id=640068077]
+position = Vector2(300, 60)
 
-[node name="Visual" type="Polygon2D" parent="PlatformC" unique_id=1481633418]
+[node name="Visual" type="Polygon2D" parent="WaterPlatformA" unique_id=886496710]
+position = Vector2(-218, 0)
 color = Color(0.22, 0.24, 0.32, 1)
-polygon = PackedVector2Array(-100, -10, 100, -10, 100, 10, -100, 10)
+polygon = PackedVector2Array(-130, -10, 130, -10, 130, 10, -130, 10)
 
-[node name="Shape" type="CollisionPolygon2D" parent="PlatformC" unique_id=1079958149]
-polygon = PackedVector2Array(-100, -10, 100, -10, 100, 10, -100, 10)
+[node name="Shape" type="CollisionPolygon2D" parent="WaterPlatformA" unique_id=260898846]
+position = Vector2(-219, 0)
+polygon = PackedVector2Array(-130, -10, 130, -10, 130, 10, -130, 10)
 
-[node name="Outline" type="Line2D" parent="PlatformC" unique_id=1323235457]
-points = PackedVector2Array(-100, -10, 100, -10)
+[node name="Outline" type="Line2D" parent="WaterPlatformA" unique_id=654226402]
+position = Vector2(-220, 0)
+points = PackedVector2Array(-130, -10, 130, -10)
+width = 2.0
+default_color = Color(0.55, 0.6, 0.7, 1)
+
+[node name="WaterPlatformB" type="StaticBody2D" parent="." unique_id=288996147]
+position = Vector2(900, -30)
+
+[node name="Visual" type="Polygon2D" parent="WaterPlatformB" unique_id=153559421]
+position = Vector2(93, 0)
+color = Color(0.22, 0.24, 0.32, 1)
+polygon = PackedVector2Array(-110, -10, 110, -10, 110, 10, -110, 10)
+
+[node name="Shape" type="CollisionPolygon2D" parent="WaterPlatformB" unique_id=425110459]
+position = Vector2(94, 0)
+polygon = PackedVector2Array(-110, -10, 110, -10, 110, 10, -110, 10)
+
+[node name="Outline" type="Line2D" parent="WaterPlatformB" unique_id=1173440154]
+position = Vector2(95, 0)
+points = PackedVector2Array(-110, -10, 110, -10)
+width = 2.0
+default_color = Color(0.55, 0.6, 0.7, 1)
+
+[node name="WindPlatformA" type="StaticBody2D" parent="." unique_id=1079461657]
+position = Vector2(1500, 60)
+
+[node name="Visual" type="Polygon2D" parent="WindPlatformA" unique_id=1481633418]
+color = Color(0.22, 0.24, 0.32, 1)
+polygon = PackedVector2Array(-110, -10, 110, -10, 110, 10, -110, 10)
+
+[node name="Shape" type="CollisionPolygon2D" parent="WindPlatformA" unique_id=1079958149]
+polygon = PackedVector2Array(-110, -10, 110, -10, 110, 10, -110, 10)
+
+[node name="Outline" type="Line2D" parent="WindPlatformA" unique_id=1323235457]
+points = PackedVector2Array(-110, -10, 110, -10)
+width = 2.0
+default_color = Color(0.55, 0.6, 0.7, 1)
+
+[node name="WindPlatformB" type="StaticBody2D" parent="." unique_id=965528702]
+position = Vector2(2100, -80)
+
+[node name="Visual" type="Polygon2D" parent="WindPlatformB" unique_id=433590767]
+color = Color(0.22, 0.24, 0.32, 1)
+polygon = PackedVector2Array(-130, -10, 130, -10, 130, 10, -130, 10)
+
+[node name="Shape" type="CollisionPolygon2D" parent="WindPlatformB" unique_id=688053333]
+polygon = PackedVector2Array(-130, -10, 130, -10, 130, 10, -130, 10)
+
+[node name="Outline" type="Line2D" parent="WindPlatformB" unique_id=246909212]
+points = PackedVector2Array(-130, -10, 130, -10)
+width = 2.0
+default_color = Color(0.55, 0.6, 0.7, 1)
+
+[node name="EarthPlatform" type="StaticBody2D" parent="." unique_id=819663432]
+position = Vector2(3000, 40)
+
+[node name="Visual" type="Polygon2D" parent="EarthPlatform" unique_id=41021588]
+color = Color(0.32, 0.26, 0.22, 1)
+polygon = PackedVector2Array(-160, -10, 160, -10, 160, 10, -160, 10)
+
+[node name="Shape" type="CollisionPolygon2D" parent="EarthPlatform" unique_id=1132177154]
+polygon = PackedVector2Array(-160, -10, 160, -10, 160, 10, -160, 10)
+
+[node name="Outline" type="Line2D" parent="EarthPlatform" unique_id=30584701]
+points = PackedVector2Array(-160, -10, 160, -10)
+width = 2.0
+default_color = Color(0.7, 0.55, 0.35, 1)
+
+[node name="BossPlatform" type="StaticBody2D" parent="." unique_id=1859656319]
+position = Vector2(4200, 30)
+
+[node name="Visual" type="Polygon2D" parent="BossPlatform" unique_id=854989399]
+color = Color(0.22, 0.24, 0.32, 1)
+polygon = PackedVector2Array(-200, -10, 200, -10, 200, 10, -200, 10)
+
+[node name="Shape" type="CollisionPolygon2D" parent="BossPlatform" unique_id=488745861]
+polygon = PackedVector2Array(-200, -10, 200, -10, 200, 10, -200, 10)
+
+[node name="Outline" type="Line2D" parent="BossPlatform" unique_id=3425579]
+points = PackedVector2Array(-200, -10, 200, -10)
 width = 2.0
 default_color = Color(0.55, 0.6, 0.7, 1)
 
 [node name="LeftWall" type="StaticBody2D" parent="." unique_id=905454415]
-position = Vector2(-720, 0)
+position = Vector2(-1200, 0)
 
 [node name="Visual" type="Polygon2D" parent="LeftWall" unique_id=932927733]
 color = Color(0.18, 0.2, 0.26, 1)
@@ -82,14 +269,14 @@ polygon = PackedVector2Array(0, -500, 20, -500, 20, 200, 0, 200)
 polygon = PackedVector2Array(0, -500, 20, -500, 20, 200, 0, 200)
 
 [node name="RightWall" type="StaticBody2D" parent="." unique_id=161292606]
-position = Vector2(1200, 0)
+position = Vector2(4800, 0)
 
 [node name="Visual" type="Polygon2D" parent="RightWall" unique_id=1412103821]
 color = Color(0.18, 0.2, 0.26, 1)
-polygon = PackedVector2Array(0, -500, 20, -500, 20, 200, 0, 200)
+polygon = PackedVector2Array(-20, -500, 0, -500, 0, 200, -20, 200)
 
 [node name="Shape" type="CollisionPolygon2D" parent="RightWall" unique_id=499157947]
-polygon = PackedVector2Array(0, -500, 20, -500, 20, 200, 0, 200)
+polygon = PackedVector2Array(-20, -500, 0, -500, 0, 200, -20, 200)
 
 [node name="Spikes" type="Area2D" parent="." unique_id=863701146]
 visible = false
@@ -104,59 +291,184 @@ polygon = PackedVector2Array(-40, 0, -30, -14, -20, 0, -10, -14, 0, 0, 10, -14, 
 polygon = PackedVector2Array(-40, 0, -30, -14, -20, 0, -10, -14, 0, 0, 10, -14, 20, 0, 30, -14, 40, 0)
 
 [node name="Player" parent="." unique_id=1667208584 instance=ExtResource("1")]
-position = Vector2(-500, 100)
+position = Vector2(-900, 100)
+spawn_position = Vector2(-900, 100)
 
 [node name="DummySpawner" type="Node2D" parent="." unique_id=152717975]
 script = ExtResource("5")
 
-[node name="SpawnPoint1" type="Marker2D" parent="DummySpawner" unique_id=751942041]
+[node name="FireSpawnPoint" type="Marker2D" parent="DummySpawner" unique_id=751942041]
+position = Vector2(-600, 184)
+
+[node name="WaterSpawnPoint" type="Marker2D" parent="DummySpawner" unique_id=1484226700]
+position = Vector2(600, 184)
+
+[node name="WindSpawnPoint" type="Marker2D" parent="DummySpawner" unique_id=924964433]
+position = Vector2(1800, 184)
+
+[node name="EarthSpawnPoint" type="Marker2D" parent="DummySpawner" unique_id=2132990769]
+position = Vector2(3000, 184)
+
+[node name="BossSpawn" type="Marker2D" parent="DummySpawner" unique_id=921571886]
+position = Vector2(4200, 184)
+
+[node name="FireDummy1" parent="DummySpawner" unique_id=260780657 instance=ExtResource("2")]
+position = Vector2(-1050, 184)
+weakness = 1
+aggressive = false
+
+[node name="FireDummy2" parent="DummySpawner" unique_id=1375659468 instance=ExtResource("2")]
+position = Vector2(-750, 184)
+weakness = 1
+aggressive = false
+
+[node name="FireDummy3" parent="DummySpawner" unique_id=887730205 instance=ExtResource("2")]
 position = Vector2(-450, 184)
-
-[node name="SpawnPoint2" type="Marker2D" parent="DummySpawner" unique_id=1484226700]
-position = Vector2(200, 184)
-
-[node name="SpawnPoint3" type="Marker2D" parent="DummySpawner" unique_id=924964433]
-position = Vector2(1050, 184)
-
-[node name="SpawnPoint4" type="Marker2D" parent="DummySpawner" unique_id=1159474613]
-position = Vector2(-300, 54)
-
-[node name="SpawnPoint5" type="Marker2D" parent="DummySpawner" unique_id=2075850164]
-position = Vector2(350, 4)
-
-[node name="SpawnPoint6" type="Marker2D" parent="DummySpawner" unique_id=2003049578]
-position = Vector2(700, -126)
-
-[node name="Dummy1" parent="DummySpawner" unique_id=260780657 instance=ExtResource("2")]
-position = Vector2(-100, 184)
 weakness = 1
+aggressive = false
 
-[node name="Dummy2" parent="DummySpawner" unique_id=1375659468 instance=ExtResource("2")]
-position = Vector2(280, 4)
-weakness = 2
-
-[node name="Dummy3" parent="DummySpawner" unique_id=887730205 instance=ExtResource("2")]
-position = Vector2(700, -126)
+[node name="FireDummy4" parent="DummySpawner" unique_id=886884966 instance=ExtResource("2")]
+position = Vector2(-150, 184)
 weakness = 1
+aggressive = false
 
-[node name="Dummy4" parent="DummySpawner" unique_id=2060897005 instance=ExtResource("2")]
-position = Vector2(950, 184)
-weakness = 2
-
-[node name="Dummy5" parent="DummySpawner" instance=ExtResource("2")]
+[node name="WaterDummy1" parent="DummySpawner" unique_id=2060897005 instance=ExtResource("2")]
 position = Vector2(150, 184)
+weakness = 2
+aggressive = false
+
+[node name="WaterDummy2" parent="DummySpawner" unique_id=450931678 instance=ExtResource("2")]
+position = Vector2(450, 184)
+weakness = 2
+aggressive = false
+
+[node name="WaterDummy3" parent="DummySpawner" unique_id=1880736805 instance=ExtResource("2")]
+position = Vector2(750, 184)
+weakness = 2
+aggressive = false
+
+[node name="WaterDummy4" parent="DummySpawner" unique_id=1877448082 instance=ExtResource("2")]
+position = Vector2(1050, 184)
+weakness = 2
+aggressive = false
+
+[node name="WindDummy1" parent="DummySpawner" unique_id=1300158912 instance=ExtResource("2")]
+position = Vector2(1350, 184)
 weakness = 3
+aggressive = false
 
-[node name="Dummy6" parent="DummySpawner" instance=ExtResource("2")]
-position = Vector2(500, 184)
-weakness = 1
-
-[node name="Dummy7" parent="DummySpawner" instance=ExtResource("2")]
-position = Vector2(-200, 184)
+[node name="WindDummy2" parent="DummySpawner" unique_id=1817948760 instance=ExtResource("2")]
+position = Vector2(1650, 184)
 weakness = 3
+aggressive = false
 
-[node name="Dummy8" parent="DummySpawner" instance=ExtResource("2")]
-position = Vector2(800, 184)
-weakness = 0
+[node name="WindDummy3" parent="DummySpawner" unique_id=362378931 instance=ExtResource("2")]
+position = Vector2(1950, 184)
+weakness = 3
+aggressive = false
+
+[node name="WindDummy4" parent="DummySpawner" unique_id=1348027464 instance=ExtResource("2")]
+position = Vector2(2250, 184)
+weakness = 3
+aggressive = false
+
+[node name="EarthSentinel1" parent="DummySpawner" unique_id=868736531 instance=ExtResource("6")]
+position = Vector2(2600, 184)
+
+[node name="EarthSentinel2" parent="DummySpawner" unique_id=1446686764 instance=ExtResource("6")]
+position = Vector2(3000, 184)
+
+[node name="EarthSentinel3" parent="DummySpawner" unique_id=1699366211 instance=ExtResource("6")]
+position = Vector2(3400, 184)
+
+[node name="WindFlyPlatform" type="StaticBody2D" parent="." unique_id=1512983798]
+position = Vector2(1800, -180)
+
+[node name="Visual" type="Polygon2D" parent="WindFlyPlatform" unique_id=2093541961]
+position = Vector2(1, -65)
+color = Color(0.32, 0.42, 0.36, 1)
+polygon = PackedVector2Array(-140, -10, 140, -10, 140, 10, -140, 10)
+
+[node name="Shape" type="CollisionPolygon2D" parent="WindFlyPlatform" unique_id=1154393458]
+position = Vector2(1, -65)
+polygon = PackedVector2Array(-140, -10, 140, -10, 140, 10, -1.9998779, 10, -140, 10)
+
+[node name="Outline" type="Line2D" parent="WindFlyPlatform" unique_id=2133608960]
+position = Vector2(1, -64)
+points = PackedVector2Array(-140, -10, 140, -10)
+width = 2.0
+default_color = Color(0.6, 0.95, 0.7, 1)
+
+[node name="WindFlyHint" type="Label" parent="." unique_id=345577512]
+offset_left = 1700.0
+offset_top = -278.0
+offset_right = 1900.0
+offset_bottom = -258.0
+theme_override_colors/font_color = Color(0.6, 0.95, 0.7, 0.85)
+theme_override_font_sizes/font_size = 14
+text = "Hold Jump to fly up"
+horizontal_alignment = 1
+
+[node name="FireSubLabel" type="Label" parent="." unique_id=619842293]
+offset_left = -800.0
+offset_top = -90.0
+offset_right = -400.0
+offset_bottom = -70.0
+theme_override_colors/font_color = Color(1, 0.55, 0.25, 0.85)
+theme_override_font_sizes/font_size = 14
+text = "Burn the vines · other elements bounce off"
+horizontal_alignment = 1
+
+[node name="WaterSubLabel" type="Label" parent="." unique_id=1281248546]
+offset_left = 400.0
+offset_top = -90.0
+offset_right = 800.0
+offset_bottom = -70.0
+theme_override_colors/font_color = Color(0.45, 0.78, 1, 0.85)
+theme_override_font_sizes/font_size = 14
+text = "Pour water (RMB+LMB) to grow trees / douse fires"
+horizontal_alignment = 1
+
+[node name="WindSubLabel" type="Label" parent="." unique_id=714256679]
+offset_left = 1600.0
+offset_top = -90.0
+offset_right = 2000.0
+offset_bottom = -70.0
+theme_override_colors/font_color = Color(0.6, 0.95, 0.7, 0.85)
+theme_override_font_sizes/font_size = 14
+text = "Shift to dash · hold Jump in wind stance to fly"
+horizontal_alignment = 1
+
+[node name="Environment" type="Node2D" parent="." unique_id=1037222620]
+
+[node name="FireVine1" parent="Environment" unique_id=402010453 instance=ExtResource("7")]
+position = Vector2(-1000, 200)
+
+[node name="FireVine2" parent="Environment" unique_id=1969811276 instance=ExtResource("7")]
+position = Vector2(-700, 200)
+
+[node name="FireVine3" parent="Environment" unique_id=1655255645 instance=ExtResource("7")]
+position = Vector2(-100, 200)
+
+[node name="WaterFire1" parent="Environment" unique_id=1890550310 instance=ExtResource("8")]
+position = Vector2(250, 200)
+
+[node name="WaterFire2" parent="Environment" unique_id=318139234 instance=ExtResource("8")]
+position = Vector2(950, 200)
+
+[node name="WaterTree1" parent="Environment" unique_id=1165163898 instance=ExtResource("9")]
+position = Vector2(500, 200)
+
+[node name="WaterTree2" parent="Environment" unique_id=693286474 instance=ExtResource("9")]
+position = Vector2(800, 200)
+
+[node name="EarthRock1" parent="Environment" unique_id=951535527 instance=ExtResource("10")]
+position = Vector2(2550, 200)
+
+[node name="EarthRock2" parent="Environment" unique_id=628190289 instance=ExtResource("10")]
+position = Vector2(3300, 200)
+
+[node name="EarthPushRock" parent="Environment" unique_id=1641414533 instance=ExtResource("11")]
+position = Vector2(2900, 170)
 
 [node name="HUD" parent="." unique_id=1265886396 instance=ExtResource("3")]

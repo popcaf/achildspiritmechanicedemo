@@ -14,6 +14,12 @@ const STANCE_COUNT := 4
 const DOUBLE_TAP_WINDOW := 1.0
 const ATTACK_CD_REDUCTION_PER_HIT := 0.4
 
+# Universal dash: any stance can dash via Shift (the `dash` action).
+# Cooldown shared across all stances, separate from each stance's signature.
+const UNIVERSAL_DASH_TIME := 0.18
+const UNIVERSAL_DASH_SPEED := 2400.0
+const UNIVERSAL_DASH_COOLDOWN := 3.0
+
 const StancePlayer := preload("res://scripts/entities/player/stance_player.gd")
 
 @export var max_health: int = 100
@@ -28,6 +34,10 @@ var current_stance: int = STANCE_FIRE
 var stance_nodes: Array = []
 var active_stance: StancePlayer
 
+# Universal dash state (shared across stances).
+var dash_cd: float = 0.0
+var dash_time_left: float = 0.0
+
 # Double-tap detection: time since last tap (per stance key). INF means "no recent tap".
 var last_tap_time: Array = [INF, INF, INF, INF]
 
@@ -38,6 +48,7 @@ signal health_changed(current: int, max_value: int)
 signal stance_changed(stance: int)
 signal skill_cd_changed(stance: int, remaining: float, max_cd: float)
 signal fly_gauge_changed(current: float, max_value: float)
+signal dash_cd_changed(remaining: float, max_value: float)
 
 @onready var fire_stance_node: StancePlayer = $StanceHolder/FirePlayer
 @onready var water_stance_node: StancePlayer = $StanceHolder/WaterPlayer
@@ -81,6 +92,11 @@ func _process(_delta: float) -> void:
 
 func _physics_process(delta: float) -> void:
 	attack_cd = maxf(0.0, attack_cd - delta)
+	var prev_dash_cd: float = dash_cd
+	dash_cd = maxf(0.0, dash_cd - delta)
+	if dash_cd != prev_dash_cd:
+		dash_cd_changed.emit(dash_cd, UNIVERSAL_DASH_COOLDOWN)
+	dash_time_left = maxf(0.0, dash_time_left - delta)
 	for i in range(stance_nodes.size()):
 		stance_nodes[i].tick(delta)
 		last_tap_time[i] = minf(INF, last_tap_time[i] + delta)
@@ -91,8 +107,11 @@ func _physics_process(delta: float) -> void:
 	elif input_x < 0.0 and facing != -1:
 		set_facing_dir(-1)
 
-	# Movement: a stance's dash can override regular control.
-	if active_stance and active_stance.is_locking_movement():
+	# Movement: universal dash overrides everything; otherwise a stance's own
+	# dash (fire) can override; otherwise normal control.
+	if dash_time_left > 0.0:
+		velocity = Vector2(float(facing) * UNIVERSAL_DASH_SPEED, 0.0)
+	elif active_stance and active_stance.is_locking_movement():
 		velocity = active_stance.get_locked_velocity()
 		active_stance.during_locked_movement()
 	else:
@@ -126,7 +145,8 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("attack"):
 		if fire_stance_node.is_aiming():
 			fire_stance_node.confirm_dash()
-		elif attack_cd <= 0.0 and active_stance and not active_stance.is_locking_movement():
+		elif (attack_cd <= 0.0 and dash_time_left <= 0.0
+				and active_stance and not active_stance.is_locking_movement()):
 			if aim_mode_active:
 				active_stance.start_ranged_attack()
 			else:
@@ -139,10 +159,13 @@ func _physics_process(delta: float) -> void:
 			and active_stance):
 		active_stance.continue_ranged_attack(delta)
 
+	if Input.is_action_just_pressed("dash"):
+		try_universal_dash()
+
 	_handle_stance_key("stance_fire", STANCE_FIRE)
 	_handle_stance_key("stance_water", STANCE_WATER)
 	_handle_stance_key_earth()
-	_handle_stance_key("stance_wind", STANCE_WIND)
+	_handle_stance_key_wind()
 
 
 func _handle_stance_key(action: String, stance_idx: int) -> void:
@@ -159,6 +182,33 @@ func _handle_stance_key(action: String, stance_idx: int) -> void:
 			last_tap_time[stance_idx] = 0.0
 	if Input.is_action_just_released(action):
 		stance_nodes[stance_idx].on_stance_key_released()
+
+
+func _handle_stance_key_wind() -> void:
+	# R: single tap = swap to wind. Double tap = swap to wind + push skill
+	# (knocks enemies on both the front and back sides of the player).
+	if Input.is_action_just_pressed("stance_wind"):
+		var is_double_tap: bool = last_tap_time[STANCE_WIND] <= DOUBLE_TAP_WINDOW
+		if fire_stance_node.is_aiming():
+			fire_stance_node.close_aim()
+		swap_to_stance(STANCE_WIND)
+		if is_double_tap:
+			wind_stance_node.try_push_skill()
+			last_tap_time[STANCE_WIND] = INF
+		else:
+			last_tap_time[STANCE_WIND] = 0.0
+
+
+func try_universal_dash() -> void:
+	if dash_cd > 0.0 or dash_time_left > 0.0:
+		return
+	if active_stance and active_stance.is_locking_movement():
+		return
+	dash_cd = UNIVERSAL_DASH_COOLDOWN
+	dash_time_left = UNIVERSAL_DASH_TIME
+	dash_cd_changed.emit(dash_cd, UNIVERSAL_DASH_COOLDOWN)
+	if active_stance:
+		active_stance.play_state("dash")
 
 
 func _handle_stance_key_earth() -> void:
@@ -209,7 +259,7 @@ func set_facing_dir(direction: int) -> void:
 func _update_animation_state() -> void:
 	if active_stance == null:
 		return
-	if active_stance.is_locking_movement():
+	if dash_time_left > 0.0 or active_stance.is_locking_movement():
 		active_stance.play_state("dash")
 	else:
 		active_stance.play_state(active_stance.motion_state(velocity, is_on_floor()))
@@ -254,6 +304,9 @@ func _respawn() -> void:
 	health = max_health
 	velocity = Vector2.ZERO
 	global_position = spawn_position
+	dash_cd = 0.0
+	dash_time_left = 0.0
+	dash_cd_changed.emit(0.0, UNIVERSAL_DASH_COOLDOWN)
 	fire_stance_node.reset_on_respawn()
 	earth_stance_node.reset_on_respawn()
 	wind_stance_node.reset_on_respawn()

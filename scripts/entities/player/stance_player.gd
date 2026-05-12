@@ -101,6 +101,10 @@ func reset_on_respawn() -> void:
 	pass
 
 
+func try_push_skill() -> void:
+	pass
+
+
 func stance_info() -> Dictionary:
 	return {
 		"name": stance_name(),

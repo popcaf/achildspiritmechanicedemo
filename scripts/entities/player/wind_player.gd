@@ -2,14 +2,14 @@ extends "res://scripts/entities/player/stance_player.gd"
 
 const COLOR := Color(0.6, 0.95, 0.7, 1.0)
 
-# Gale dash: pure movement. No damage.
-const DASH_TIME := 0.18
-const DASH_SPEED := 2400.0
-const DASH_COOLDOWN := 3.0
-
-# Double-tap bonus: AOE around player on swap-into-wind.
-const AOE_RADIUS := 140.0
-const AOE_DAMAGE := 8
+# Wind's signature: a push skill that knocks enemies away on BOTH the front
+# and back of the player (two opposing knockback rectangles). Triggered by
+# double-tapping R. The dash itself is universal (handled by player.gd).
+const PUSH_COOLDOWN := 3.0
+const PUSH_LENGTH := 200.0
+const PUSH_WIDTH := 140.0
+const PUSH_FORCE := 700.0
+const PUSH_DAMAGE := 8
 
 # Wind fly: hold Jump while airborne in wind stance to lift, drains fly_gauge.
 const FLY_LIFT := -260.0
@@ -21,16 +21,15 @@ const RANGED_CD := 0.30  # wind ranged faster than fire
 const RANGED_DAMAGE := 10
 const RANGED_RANGE := 900.0
 
-var _dash_time_left: float = 0.0
 var fly_gauge: float = FLY_MAX
 var _is_flying: bool = false
 
 
 func stance_name() -> String: return "Wind"
 func stance_color() -> Color: return COLOR
-func stance_key() -> String: return "⇧"
-func skill_name() -> String: return "Gale Dash"
-func skill_cooldown_max() -> float: return DASH_COOLDOWN
+func stance_key() -> String: return "R"
+func skill_name() -> String: return "Wind Push"
+func skill_cooldown_max() -> float: return PUSH_COOLDOWN
 func element_id() -> int: return Element.WIND
 func basic_attack_cooldown() -> float: return BASIC_CD
 func ranged_attack_cooldown() -> float: return RANGED_CD
@@ -38,37 +37,14 @@ func fly_gauge_max() -> float: return FLY_MAX
 func fly_gauge_current() -> float: return fly_gauge
 
 
-func tick(delta: float) -> void:
-	super.tick(delta)
-	_dash_time_left = maxf(0.0, _dash_time_left - delta)
-
-
-func on_stance_key_pressed(is_double_tap: bool) -> void:
-	if is_double_tap:
-		return
-	_try_dash()
-
-
-func on_swap_in(prev_stance: int) -> void:
-	# Swap-INTO-wind from another stance fires an AOE burst around the player.
-	if prev_stance != player.STANCE_WIND:
-		_do_aoe()
-
-
-func _try_dash() -> void:
+func try_push_skill() -> void:
+	# Triggered by player.gd on double-tap R. Knocks enemies away on both the
+	# front and back of the player, applying damage along with the knockback.
 	if not skill_ready():
 		return
 	start_skill_cooldown()
-	_dash_time_left = DASH_TIME
-	play_state("dash")
-
-
-func is_locking_movement() -> bool:
-	return _dash_time_left > 0.0
-
-
-func get_locked_velocity() -> Vector2:
-	return Vector2(float(player.facing) * DASH_SPEED, 0.0)
+	_do_push(1)
+	_do_push(-1)
 
 
 # Wind fly: hold Jump while airborne, drains fly_gauge. Active stance only.
@@ -103,43 +79,52 @@ func start_ranged_attack() -> void:
 	spawn_needle(RANGED_DAMAGE, COLOR, Element.WIND, RANGED_RANGE)
 
 
-func _do_aoe() -> void:
-	var space_state := get_world_2d().direct_space_state
-	var query := PhysicsShapeQueryParameters2D.new()
-	var query_shape := CircleShape2D.new()
-	query_shape.radius = AOE_RADIUS
-	query.shape = query_shape
-	query.transform = Transform2D(0.0, player.global_position)
-	query.collision_mask = 32
-	query.collide_with_areas = false
-	query.collide_with_bodies = true
-	var hits: Array = space_state.intersect_shape(query, 32)
-	for hit in hits:
-		var body: Object = hit.get("collider")
-		if body and body.has_method("take_damage"):
-			body.take_damage(AOE_DAMAGE, Element.WIND, player.global_position)
+func _do_push(dir_sign: int) -> void:
+	# Knockback rectangle extending PUSH_LENGTH in dir_sign (+1 = right, -1 = left).
+	# Damages overlapping bodies and shoves them away from the player.
+	var area := Area2D.new()
+	area.collision_layer = 0
+	area.collision_mask = 32
+	area.monitorable = false
+
+	var coll := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = Vector2(PUSH_LENGTH, PUSH_WIDTH)
+	coll.shape = rect
+	coll.position = Vector2(PUSH_LENGTH / 2.0, 0.0)
+	area.add_child(coll)
 
 	var visual := Polygon2D.new()
 	visual.color = Color(COLOR.r, COLOR.g, COLOR.b, 0.45)
-	var pts := PackedVector2Array()
-	var n := 28
-	for i in range(n):
-		var a: float = float(i) * TAU / float(n)
-		pts.append(Vector2(cos(a), sin(a)) * AOE_RADIUS)
-	visual.polygon = pts
-	visual.scale = Vector2(0.4, 0.4)
-	get_tree().current_scene.add_child(visual)
-	visual.global_position = player.global_position
-	var t := visual.create_tween()
-	t.set_parallel(true)
-	t.tween_property(visual, "scale", Vector2.ONE, 0.22) \
-		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	t.tween_property(visual, "modulate:a", 0.0, 0.36)
-	t.finished.connect(visual.queue_free, CONNECT_ONE_SHOT)
+	visual.polygon = PackedVector2Array([
+		Vector2(0.0, -PUSH_WIDTH / 2.0),
+		Vector2(PUSH_LENGTH, -PUSH_WIDTH / 2.0),
+		Vector2(PUSH_LENGTH, PUSH_WIDTH / 2.0),
+		Vector2(0.0, PUSH_WIDTH / 2.0),
+	])
+	area.add_child(visual)
+
+	area.global_position = player.global_position
+	area.rotation = 0.0 if dir_sign > 0 else PI
+	get_tree().current_scene.add_child(area)
+
+	await get_tree().physics_frame
+	for body in area.get_overlapping_bodies():
+		if body.has_method("take_damage"):
+			body.take_damage(PUSH_DAMAGE, Element.WIND, player.global_position)
+		if body.has_method("apply_knockback"):
+			var away: Vector2 = body.global_position - player.global_position
+			if away.length_squared() < 1.0:
+				away = Vector2(float(dir_sign), 0.0)
+			away = away.normalized()
+			body.apply_knockback(Vector2(away.x * PUSH_FORCE, -PUSH_FORCE * 0.35))
+
+	var t := area.create_tween()
+	t.tween_property(visual, "modulate:a", 0.0, 0.25)
+	t.finished.connect(area.queue_free, CONNECT_ONE_SHOT)
 
 
 func reset_on_respawn() -> void:
-	_dash_time_left = 0.0
 	fly_gauge = FLY_MAX
 	_is_flying = false
 	fly_gauge_changed.emit(fly_gauge, FLY_MAX)
