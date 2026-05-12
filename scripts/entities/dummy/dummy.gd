@@ -10,14 +10,21 @@ const Element := preload("res://scripts/core/element.gd")
 # AI tunables
 const PLAYER_GROUP := "player"
 const CHASE_RANGE := 700.0       # player must be within this for the dummy to start chasing.
-const ATTACK_RANGE := 70.0       # close enough to swing.
-const STRIKE_RANGE := 90.0       # actual hit reach (slightly longer than approach radius).
+const ATTACK_RANGE := 115.0      # close enough to swing (approach distance).
+const STRIKE_RANGE := 145.0      # actual hit reach (slightly longer than approach radius).
 const MOVE_SPEED := 220.0
 const ATTACK_DAMAGE := 8
 const ATTACK_WINDUP := 0.40      # telegraph time before damage actually lands.
 const ATTACK_RECOVERY := 0.35
 const ATTACK_COOLDOWN := 1.20    # min time between strikes.
 const STUN_TIME := 0.20          # brief stagger when hit.
+
+# Jumping (platform pursuit + wall hop). Strong enough to reach mid-height
+# platforms; the very highest in the map may need a second hop.
+const JUMP_VELOCITY := -900.0
+const JUMP_COOLDOWN := 0.65
+const PLATFORM_JUMP_X_RANGE := 280.0   # dummy is within this much horizontally of player.
+const PLATFORM_JUMP_Y_THRESHOLD := 45.0  # player must be at least this high above to trigger.
 
 const ATTACK_STATE_IDLE := 0
 const ATTACK_STATE_WINDUP := 1
@@ -35,6 +42,7 @@ var _attack_cd: float = 0.0
 var _attack_state: int = ATTACK_STATE_IDLE
 var _attack_timer: float = 0.0
 var _stun_timer: float = 0.0
+var _jump_cd: float = 0.0
 
 signal died
 
@@ -66,6 +74,7 @@ func _physics_process(delta: float) -> void:
 
 	_stun_timer = maxf(0.0, _stun_timer - delta)
 	_attack_cd = maxf(0.0, _attack_cd - delta)
+	_jump_cd = maxf(0.0, _jump_cd - delta)
 
 	if _player == null or not is_instance_valid(_player):
 		_player = _find_player()
@@ -81,9 +90,10 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
-	# Climb low walls so dummies don't get permanently stuck on a step.
-	if can_act and is_on_wall() and is_on_floor():
-		velocity.y = -480.0
+	# Climb obstacles when blocked horizontally — uses the same jump as platform pursuit.
+	if can_act and is_on_wall() and is_on_floor() and _jump_cd <= 0.0:
+		velocity.y = JUMP_VELOCITY
+		_jump_cd = JUMP_COOLDOWN
 
 
 func _ai_chase_or_attack(delta: float) -> void:
@@ -104,6 +114,12 @@ func _ai_chase_or_attack(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, 0.0, FRICTION * delta)
 	else:
 		velocity.x = float(_facing) * MOVE_SPEED
+		# Jump up when the player is on a higher platform and within reach.
+		if (is_on_floor() and _jump_cd <= 0.0
+				and to_player.y < -PLATFORM_JUMP_Y_THRESHOLD
+				and absf(to_player.x) < PLATFORM_JUMP_X_RANGE):
+			velocity.y = JUMP_VELOCITY
+			_jump_cd = JUMP_COOLDOWN
 
 
 func _start_attack() -> void:
@@ -159,8 +175,8 @@ func on_parried() -> void:
 func _spawn_swing_visual() -> void:
 	var swing := Polygon2D.new()
 	swing.color = Color(1.0, 0.5, 0.5, 0.55)
-	var w: float = 70.0
-	var h: float = 44.0
+	var w: float = 130.0
+	var h: float = 48.0
 	swing.polygon = PackedVector2Array([
 		Vector2(0.0, -h / 2.0),
 		Vector2(w, -h / 2.0),
@@ -168,7 +184,7 @@ func _spawn_swing_visual() -> void:
 		Vector2(0.0, h / 2.0),
 	])
 	add_child(swing)
-	swing.position = Vector2(float(_facing) * 18.0, -18.0)
+	swing.position = Vector2(float(_facing) * 16.0, -18.0)
 	swing.scale.x = float(_facing)
 	var t := create_tween()
 	t.tween_property(swing, "modulate:a", 0.0, 0.25)

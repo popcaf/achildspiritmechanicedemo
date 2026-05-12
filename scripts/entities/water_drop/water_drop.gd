@@ -13,7 +13,7 @@ const Element := preload("res://scripts/core/element.gd")
 var velocity: Vector2 = Vector2.ZERO
 
 @onready var visual: Polygon2D = $Visual
-
+ 
 
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)
