@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" path="res://scenes/entities/environment/water_tree.tscn" id="9"]
 [ext_resource type="PackedScene" path="res://scenes/entities/environment/earth_rock.tscn" id="10"]
 [ext_resource type="PackedScene" path="res://scenes/entities/environment/push_rock.tscn" id="11"]
+[ext_resource type="PackedScene" uid="uid://bossnode00001" path="res://scenes/entities/boss/boss.tscn" id="12"]
 
 [node name="TestMap" type="Node2D" unique_id=1374877108]
 
@@ -129,7 +130,7 @@ offset_right = 4400.0
 offset_bottom = -90.0
 theme_override_colors/font_color = Color(0.85, 0.3, 0.35, 1)
 theme_override_font_sizes/font_size = 24
-text = "BOSS AREA (WIP)"
+text = "BOSS AREA"
 horizontal_alignment = 1
 
 [node name="FirePlatformA" type="StaticBody2D" parent="." unique_id=464435030]
@@ -278,6 +279,40 @@ polygon = PackedVector2Array(-20, -500, 0, -500, 0, 200, -20, 200)
 [node name="Shape" type="CollisionPolygon2D" parent="RightWall" unique_id=499157947]
 polygon = PackedVector2Array(-20, -500, 0, -500, 0, 200, -20, 200)
 
+[node name="BossLeftWall" type="StaticBody2D" parent="." unique_id=1881544020]
+position = Vector2(3600, 0)
+collision_layer = 64
+collision_mask = 0
+
+[node name="Visual" type="Polygon2D" parent="BossLeftWall" unique_id=1881544021]
+color = Color(0.85, 0.3, 0.35, 0.45)
+polygon = PackedVector2Array(0, -500, 8, -500, 8, 200, 0, 200)
+
+[node name="Shape" type="CollisionPolygon2D" parent="BossLeftWall" unique_id=1881544022]
+polygon = PackedVector2Array(0, -500, 8, -500, 8, 200, 0, 200)
+
+[node name="Outline" type="Line2D" parent="BossLeftWall" unique_id=1881544023]
+points = PackedVector2Array(4, -500, 4, 200)
+width = 2.0
+default_color = Color(0.95, 0.4, 0.45, 0.8)
+
+[node name="BossRightWall" type="StaticBody2D" parent="." unique_id=1881544030]
+position = Vector2(4800, 0)
+collision_layer = 64
+collision_mask = 0
+
+[node name="Visual" type="Polygon2D" parent="BossRightWall" unique_id=1881544031]
+color = Color(0.85, 0.3, 0.35, 0.45)
+polygon = PackedVector2Array(-8, -500, 0, -500, 0, 200, -8, 200)
+
+[node name="Shape" type="CollisionPolygon2D" parent="BossRightWall" unique_id=1881544032]
+polygon = PackedVector2Array(-8, -500, 0, -500, 0, 200, -8, 200)
+
+[node name="Outline" type="Line2D" parent="BossRightWall" unique_id=1881544033]
+points = PackedVector2Array(-4, -500, -4, 200)
+width = 2.0
+default_color = Color(0.95, 0.4, 0.45, 0.8)
+
 [node name="Spikes" type="Area2D" parent="." unique_id=863701146]
 visible = false
 position = Vector2(80, 200)
@@ -380,6 +415,11 @@ position = Vector2(3000, 184)
 
 [node name="EarthSentinel3" parent="DummySpawner" unique_id=1699366211 instance=ExtResource("6")]
 position = Vector2(3400, 184)
+
+[node name="Boss" parent="DummySpawner" unique_id=1881144610 instance=ExtResource("12")]
+position = Vector2(4500, 184)
+area_left = 3600.0
+area_right = 4800.0
 
 [node name="WindFlyPlatform" type="StaticBody2D" parent="." unique_id=1512983798]
 position = Vector2(1800, -180)

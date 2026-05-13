@@ -6,6 +6,9 @@ const Element := preload("res://scripts/core/element.gd")
 @export var damage: int = 8
 @export var lifetime: float = 1.5
 @export var max_range: float = 600.0
+# When true, this projectile damages the player and ignores other dummies/bosses.
+# Default (false) is the player-fired behavior: damages anything that isn't the player.
+@export var hostile: bool = false
 
 var velocity_dir: Vector2 = Vector2.RIGHT
 var element: int = Element.NEUTRAL
@@ -54,8 +57,21 @@ func configure(dmg: int, color: Color, elem: int = Element.NEUTRAL, range_limit:
 
 
 func _on_body_entered(body: Node) -> void:
-	if body.is_in_group("player"):
-		return
+	if hostile:
+		# Boss-fired: only the player takes the hit; pass through other dummies.
+		if not body.is_in_group("player"):
+			return
+	else:
+		# Player-fired: never friendly-fire the player.
+		if body.is_in_group("player"):
+			return
 	if body.has_method("take_damage"):
-		body.take_damage(damage, element, global_position)
+		# Player and dummies use different take_damage signatures:
+		#   player: (amount, attacker)
+		#   dummy:  (amount, element, from_pos)
+		# Dispatch by group so the projectile works against either.
+		if body.is_in_group("player"):
+			body.take_damage(damage, self)
+		else:
+			body.take_damage(damage, element, global_position)
 	queue_free()

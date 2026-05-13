@@ -82,6 +82,7 @@ dash={
 
 2d_physics/layer_5="player_damage"
 2d_physics/layer_6="ememies_damage"
+2d_physics/layer_7="boss_arena_wall"
 
 [physics]
 
